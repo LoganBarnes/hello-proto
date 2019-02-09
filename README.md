@@ -25,6 +25,25 @@ brew tap grpc/grpc
 brew install grpc
 ```
 
+## Server
+
+### Project setup
+
+(From inside the `server` directory)
+
+```bash
+cmake -E make_directory build        # create build dir
+cmake -E chdir build cmake ..        # configure project
+cmake -E chdir build cmake --build . # build project
+```
+
+#### Run server (CTRL + C to quit)
+
+```bash
+# The address argument is optional and defaults to 0.0.0.0:50055
+./build/hello_server 0.0.0.0:50055
+```
+
 ## Client
 
 ### Project setup
@@ -92,24 +111,6 @@ On Unix systems your local IP address can be found using this SO [answer](https:
 ```
 
 (This should also be the address you see after running `yarn serve`)
-
-## Server
-
-### Project setup
-
-(From inside the `server` directory)
-
-```bash
-cmake -E make_directory build        # create build dir
-cmake -E chdir build cmake ..        # configure project
-cmake -E chdir build cmake --build . # build project
-```
-
-#### Run server (CTRL + C to quit)
-
-```bash
-./build/hello_server
-```
 
 ## All together now!
 
