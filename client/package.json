@@ -6,7 +6,8 @@
     "serve": "vue-cli-service serve",
     "build": "vue-cli-service build",
     "lint": "vue-cli-service lint",
-    "generate": "./generate.sh"
+    "generate": "./scripts/generate.sh",
+    "proxy": "./scripts/proxy.sh"
   },
   "dependencies": {
     "vue": "^2.5.22",

@@ -13,8 +13,7 @@
     "baseUrl": ".",
     "types": ["webpack-env"],
     "paths": {
-      "@/*": ["src/*"],
-      "@proto/*": ["generated/*"]
+      "@/*": ["*"]
     },
     "lib": ["esnext", "dom", "dom.iterable", "scripthost"]
   },
@@ -24,7 +23,7 @@
     "src/**/*.vue",
     "tests/**/*.ts",
     "tests/**/*.tsx",
-    "generated/**/*.d.ts"
+    "generated/**/*"
   ],
   "exclude": ["node_modules"]
 }

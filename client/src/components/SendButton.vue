@@ -1,7 +1,5 @@
 <template>
-  <button @click="$emit('send-msg', msg)">
-    Send "{{ msg }}"
-  </button>
+  <button @click="$emit('send-msg', msg)">Send "{{ msg }}"</button>
 </template>
 
 <script lang="ts">
