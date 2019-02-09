@@ -1,8 +1,10 @@
 <template>
   <div id="app">
-    <SendButton msg="First"/>
-    <SendButton msg="Second"/>
-    <SendButton msg="Third"/>
+    <h1>Hello, gRPC!</h1>
+    <SendButton msg="Larry" @send-msg="sendMessage"/>
+    <SendButton msg="Curly" @send-msg="sendMessage"/>
+    <SendButton msg="Moe" @send-msg="sendMessage"/>
+    <p>Grpc output: {{grpcResponse}}</p>
   </div>
 </template>
 
@@ -19,23 +21,25 @@ import { grpc } from '@improbable-eng/grpc-web';
   },
 })
 export default class App extends Vue {
+  // Local proxy server that forwards calls to and from the actual server
   private client: GreeterClient|null = new GreeterClient('http://localhost:8080');
+  private grpcResponse: string = '';
 
-  public mounted(): void {
+  public sendMessage(msg: string): void {
     if (!this.client) {
       return;
     }
     const request = new HelloRequest();
-    request.setName('World');
+    request.setName(msg);
 
     this.client.sayHello(
       request,
       new grpc.Metadata(),
       (error: ServiceError | null, response: HelloReply | null) => {
         if (error) {
-          console.error(error.message);
+          this.grpcResponse = 'Error: ' + error.message;
         } else {
-          console.log(!response ? 'null' : response.getMessage());
+          this.grpcResponse = (!response ? 'null' : response.getMessage());
         }
       },
     );

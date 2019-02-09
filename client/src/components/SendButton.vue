@@ -1,5 +1,7 @@
 <template>
-  <button @click="onClick">Send "{{ msg }}"</button>
+  <button @click="$emit('send-msg', msg)">
+    Send "{{ msg }}"
+  </button>
 </template>
 
 <script lang="ts">
@@ -8,10 +10,6 @@ import { Component, Prop, Vue } from 'vue-property-decorator';
 @Component
 export default class SendButton extends Vue {
   @Prop() private msg!: string;
-
-  public onClick(): void {
-    console.log(this.msg);
-  }
 }
 </script>
 
