@@ -15,7 +15,7 @@ yarn proxy --local # setup grpc-web proxy server
 #### Compiles and hot-reloads for development
 
 ```
-yarn serve
+yarn serve --port 8081
 ```
 
 #### Compiles and minifies for production
@@ -70,7 +70,7 @@ cd client
 yarn               && \
 yarn generate      && \
 yarn proxy --local && \
-yarn serve
+yarn serve --port 8081
 
 ```
 

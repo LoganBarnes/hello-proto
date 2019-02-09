@@ -29,7 +29,7 @@ import { grpc } from '@improbable-eng/grpc-web';
 export default class App extends Vue {
   // Local proxy server that forwards calls to and from the actual server
   private client: GreeterClient | null = new GreeterClient(
-    'http://localhost:8080',
+    'http://localhost:8080'
   );
   private grpcResponse: string = '';
   private grpcErrors: string = '';
@@ -52,7 +52,7 @@ export default class App extends Vue {
           this.grpcErrors = '';
           this.grpcResponse = !response ? 'null' : response.getMessage();
         }
-      },
+      }
     );
   }
 }
@@ -60,7 +60,7 @@ export default class App extends Vue {
 
 <style>
 #app {
-  font-family: "Avenir", Helvetica, Arial, sans-serif;
+  font-family: 'Avenir', Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-align: center;

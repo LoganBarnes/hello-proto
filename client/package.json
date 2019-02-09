@@ -6,6 +6,7 @@
     "serve": "vue-cli-service serve",
     "build": "vue-cli-service build",
     "lint": "vue-cli-service lint",
+    "format": "prettier --write \"**/*.{ts,vue}\"",
     "generate": "./scripts/generate.sh",
     "proxy": "./scripts/proxy.sh"
   },
@@ -21,8 +22,10 @@
     "@vue/cli-plugin-typescript": "^3.4.0",
     "@vue/cli-service": "^3.4.0",
     "google-protobuf": "^3.7.0-rc.2",
+    "prettier": "^1.16.4",
     "ts-loader": "^5.3.3",
     "ts-protoc-gen": "^0.9.0",
+    "tslint-config-prettier": "^1.18.0",
     "typescript": "^3.0.0",
     "vue-template-compiler": "^2.5.21"
   }
