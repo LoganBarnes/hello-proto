@@ -78,20 +78,20 @@ yarn serve --port 8081
 
 ### Client:
 
-- [yarn](https://yarnpkg.com/lang/en/docs/install)
-- [docker](https://docs.docker.com/install/)
+- [Yarn](https://yarnpkg.com/lang/en/docs/install)
+- [Docker](https://docs.docker.com/install/)
 
 ### Server:
 
-- [cmake](https://cmake.org/download/)
-- [grpc](https://github.com/grpc/grpc/blob/master/BUILDING.md)
+- [CMake](https://cmake.org/download/)
+- [gRPC](https://github.com/grpc/grpc/blob/master/BUILDING.md)
 - A C++ build system (platform dependent)
   - Tested with recent versions of
     - GCC (Linux)
-    - Clang (OSX Xcode)
+    - Clang (OS X Xcode)
     - ~~MSVC (Windows VisualStudio)~~ (soon)
 
-The first two are available via homebrew if using **OS X**:
+The first two server dependencies are available via homebrew if using **OS X**:
 
 ```
 brew install cmake
