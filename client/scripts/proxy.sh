@@ -1,7 +1,27 @@
 #!/usr/bin/env bash
 
+[ -f .env ] && export $(grep -v '^#' .env | xargs)
+[ -f .env.local ] && export $(grep -v '^#' .env.local | xargs)
+
+if [ -z "$SERVER_ADDRESS" ]; then
+    SERVER_ADDRESS="localhost:9090"
+fi
+
+HOST_PORT_ARRAY=(${SERVER_ADDRESS//:/ })
+if [ ${#HOST_PORT_ARRAY[@]} -ne 2 ]; then
+  echo "Server address should be of format 'address:port'"
+  exit 1
+fi
+
+HOST=${HOST_PORT_ARRAY[0]}
+PORT=${HOST_PORT_ARRAY[1]}
+
 echo "Building proxy image"
-docker build -t hello-proto/envoy -f ./envoy.Dockerfile .
+docker build \
+  -t hello-proto/envoy \
+  --build-arg host=$HOST \
+  --build-arg port=$PORT \
+  -f ./envoy.Dockerfile .
 
 if [ "$(docker ps -q -f name=hello-proxy)" ]; then
   echo "Stopping existing container"
@@ -14,7 +34,7 @@ if [ "$(docker ps -aq -f status=exited -f name=hello-proxy)" ]; then
 fi
 
 echo "Running proxy container"
-if [ "$1" == "--local" ]; then
+if [ "$HOST" == "localhost" ]; then
     docker run -d -p 8080:8080 --network=host --name hello-proxy hello-proto/envoy
 else
     docker run -d -p 8080:8080 --name hello-proxy hello-proto/envoy

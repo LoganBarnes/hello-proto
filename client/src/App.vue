@@ -29,7 +29,7 @@ import { grpc } from '@improbable-eng/grpc-web';
 export default class App extends Vue {
   // Local proxy server that forwards calls to and from the actual server
   private client: GreeterClient | null = new GreeterClient(
-    'http://localhost:8080'
+    process.env.VUE_APP_PROXY_ADDRESS
   );
   private grpcResponse: string = '';
   private grpcErrors: string = '';
