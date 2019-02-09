@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 
-[ -f .env ] && export $(grep -v '^#' .env | xargs)
-[ -f .env.local ] && export $(grep -v '^#' .env.local | xargs)
-
-if [ -z "$SERVER_ADDRESS" ]; then
-    SERVER_ADDRESS="localhost:9090"
+# If SERVER_ADDRESS is not already set, get it from the .env files
+if [ ! -z "$SERVER_ADDRESS" ]; then
+  [ -f .env ] && export $(grep -v '^#' .env | xargs)
+  [ -f .env.local ] && export $(grep -v '^#' .env.local | xargs)
 fi
 
+# Split the SERVER_ADDRESS into its host and port values
 HOST_PORT_ARRAY=(${SERVER_ADDRESS//:/ })
 if [ ${#HOST_PORT_ARRAY[@]} -ne 2 ]; then
   echo "Server address should be of format 'address:port'"
