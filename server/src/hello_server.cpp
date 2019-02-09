@@ -29,11 +29,13 @@ public:
 
 } // namespace hello
 
-int main() {
+int main(int argc, const char* argv[]) {
 
-    constexpr const char* server_address = "0.0.0.0:9090";
+    std::string server_address = "0.0.0.0:9090";
 
-    std::cout << "Server running..." << std::endl;
+    if (argc > 1) {
+        server_address = argv[1];
+    }
 
     hello::HelloService service;
 
@@ -42,6 +44,8 @@ int main() {
     builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
 
     std::unique_ptr<grpc::Server> server = builder.BuildAndStart();
+
+    std::cout << "Server running..." << std::endl;
     server->Wait();
 
     return 0;
