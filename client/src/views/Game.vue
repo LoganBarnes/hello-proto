@@ -1,5 +1,6 @@
 <template>
   <div id="game">
+    <canvas-3d></canvas-3d>
     <!-- <AirWaves
       ref="airWaves"
       :gameLoop="gameLoop"
@@ -14,9 +15,11 @@ import Vue from 'vue';
 import Component from 'vue-class-component';
 import GameLoop from '@/engine/GameLoop';
 import SharedState from '@/engine/SharedState';
+import Canvas3d from '@/components/Canvas.vue';
 
 @Component({
   components: {
+    Canvas3d,
     // AirWaves,
   },
 })

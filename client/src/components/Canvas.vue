@@ -13,7 +13,7 @@ import { vec2 } from 'gl-matrix';
  *
  */
 @Component
-export default class GameLoopCanvas extends Vue {
+export default class Canvas3d extends Vue {
   private gl: null | WebGLRenderingContext = null;
 
   /**
@@ -22,16 +22,23 @@ export default class GameLoopCanvas extends Vue {
   public mounted(): void {
     const canvas: HTMLCanvasElement = this.$el as HTMLCanvasElement;
     const options: WebGLContextAttributes = { preserveDrawingBuffer: true };
-    this.gl = canvas.getContext('webgl', options);
+    const gl = canvas.getContext('webgl', options);
 
-    if (!this.gl) {
+    if (!gl) {
       throw new Error('Failed to initialise WebGL');
     }
+    this.gl = gl;
+
+    gl.clearColor(1.0, 0.5, 0.1, 1.0);
 
     canvas.focus();
 
     canvas.width = canvas.clientWidth;
     canvas.height = canvas.clientHeight;
+
+    /* tslint:disable:no-bitwise */
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    /* tslint:enable:no-bitwise */
   }
 
   /**
@@ -41,6 +48,12 @@ export default class GameLoopCanvas extends Vue {
     const canvas: HTMLCanvasElement = this.$el as HTMLCanvasElement;
     canvas.width = canvas.clientWidth;
     canvas.height = canvas.clientHeight;
+
+    const gl: WebGLRenderingContext = this.gl as WebGLRenderingContext;
+    /* tslint:disable:no-bitwise */
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    /* tslint:enable:no-bitwise */
+    // gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
   }
 
   /**

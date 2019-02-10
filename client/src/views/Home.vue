@@ -1,52 +1,54 @@
 <template>
   <div id="home">
-    <div id="nav">
+    <h1>McMinecraft</h1>
+    <div id="canvas-wrapper">
+      <canvas-3d ref="canvas"></canvas-3d>
+      <resize-observer @notify="handleResize" />
+    </div>
+    <div v-if="!mobileDetected()" id="nav">
       <router-link to="/game">Play!</router-link>
     </div>
-    <h1>McMinecraft</h1>
+    <div v-else>
+      <font color="gray">(Playing requires a keyboard and mouse)</font>
+    </div>
   </div>
 </template>
 
 <script lang="ts">
-import { Component, Vue } from 'vue-property-decorator';
-import SendButton from '@/components/SendButton.vue';
-import { HelloRequest, HelloReply } from '@gen/minecraft/world_pb';
-import { WorldClient, ServiceError } from '@gen/minecraft/world_pb_service';
-import { grpc } from '@improbable-eng/grpc-web';
+import { Component, Watch, Vue } from 'vue-property-decorator';
+import Canvas3d from '@/components/Canvas.vue';
 
 @Component({
   components: {
-    SendButton,
+    Canvas3d,
   },
 })
 export default class Home extends Vue {
-  // Local proxy server that forwards calls to and from the actual server
-  private client: WorldClient | null = new WorldClient(
-    'http://' + process.env.VUE_APP_PROXY_ADDRESS
-  );
-  private grpcResponse: string = '';
-  private grpcErrors: string = '';
+  /**
+   * Pass resize events to the canvas so it can update
+   * the appropriate variables.
+   */
+  public handleResize() {
+    (this.$refs.canvas as Canvas3d).resize();
+  }
 
-  public sendMessage(msg: string): void {
-    if (!this.client) {
-      return;
-    }
-    const request = new HelloRequest();
-    request.setName(msg);
-
-    this.client.sayHello(
-      request,
-      new grpc.Metadata(),
-      (error: ServiceError | null, response: HelloReply | null) => {
-        if (error) {
-          this.grpcResponse = '';
-          this.grpcErrors = 'Error: ' + error.message;
-        } else {
-          this.grpcErrors = '';
-          this.grpcResponse = !response ? 'null' : response.getMessage();
-        }
-      }
+  /**
+   * Detect mobile devices so we can prevent them from attempting
+   * to play the game that requires a mouse and keyboard.
+   */
+  public mobileDetected() {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|BB|PlayBook|IEMobile|Windows Phone|Kindle|Silk|Opera Mini/i.test(
+      navigator.userAgent
     );
   }
 }
 </script>
+
+<style>
+#canvas-wrapper {
+  width: 80vw;
+  height: 60vw;
+  margin: auto;
+  background-color: black; /*ideally matches WebGL clear color*/
+}
+</style>
