@@ -72,7 +72,7 @@ int main(int argc, const char* argv[]) {
 
     std::unique_ptr<grpc::Server> server = builder.BuildAndStart();
 
-    std::cout << "Server running..." << std::endl;
+    std::cout << "Server running at " << server_address << std::endl;
     server->Wait();
 
     return 0;
