@@ -8,12 +8,12 @@ class SharedState {
   public worldTime: number;
   public renderAlpha: number;
   public timeStep: number;
-  public cameraMover: CameraMover;
+  public cameraMover: CameraMover; // Manipulates the camera
 
   /**
    * Initializes all the variables.
    * @param worldTime The global game time
-   * @param renderAlpha The interpolated [0 - 1) value between timeSteps
+   * @param renderAlpha The interpolated [0-1) value between timeSteps
    * @param timeStep The desired time between updates
    */
   constructor(

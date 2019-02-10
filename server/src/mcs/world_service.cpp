@@ -20,4 +20,11 @@ grpc::Status WorldService::WorldUpdates(grpc::ServerContext* /*context*/,
     return grpc::Status::OK;
 }
 
+grpc::Status WorldService::SayHello(grpc::ServerContext* /*context*/,
+                                    const minecraft::HelloRequest* request,
+                                    minecraft::HelloReply* response) {
+    response->set_message("Hello, " + request->name() + "!");
+    return grpc::Status::OK;
+}
+
 } // namespace mcs

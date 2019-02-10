@@ -1,48 +1,12 @@
 <template>
   <div id="app">
-    <!-- <AirWaves
-      ref="airWaves"
-      :gameLoop="gameLoop"
-      :sharedState="sharedState"
-    ></AirWaves> -->
-    <!-- <GUI></GUI> -->
+    <div id="nav">
+      <router-link to="/">Home</router-link> |
+      <router-link to="/game">Game</router-link>
+    </div>
+    <router-view />
   </div>
 </template>
-
-<script lang="ts">
-import Vue from 'vue';
-import Component from 'vue-class-component';
-import GameLoop from '@/engine/GameLoop';
-import SharedState from '@/engine/SharedState';
-
-@Component({
-  components: {
-    // AirWaves,
-  },
-})
-export default class App extends Vue {
-  // public $refs!: {
-  // airWaves: AirWaves;
-  // };
-  private gameLoop: GameLoop;
-  private sharedState: SharedState;
-
-  constructor() {
-    super();
-    this.gameLoop = new GameLoop(() => undefined, () => undefined);
-    this.sharedState = this.gameLoop.sharedState;
-  }
-
-  public mounted() {
-    // const airWaves = this.$refs.airWaves as AirWaves;
-
-    // this.gameLoop.updateFunction = airWaves.updateVMP.bind(airWaves);
-    // this.gameLoop.renderFunction = airWaves.renderVMP.bind(airWaves);
-
-    this.gameLoop.runLoop();
-  }
-}
-</script>
 
 <style>
 #app {
@@ -51,8 +15,17 @@ export default class App extends Vue {
   -moz-osx-font-smoothing: grayscale;
   text-align: center;
   color: #2c3e50;
-  background-color: black;
-  width: 100vw;
-  height: 100vh;
+}
+#nav {
+  padding: 30px;
+}
+
+#nav a {
+  font-weight: bold;
+  color: #2c3e50;
+}
+
+#nav a.router-link-exact-active {
+  color: #42b983;
 }
 </style>

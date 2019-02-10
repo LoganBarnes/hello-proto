@@ -6,7 +6,7 @@
     "serve": "vue-cli-service serve",
     "build": "vue-cli-service build",
     "lint": "vue-cli-service lint",
-    "format": "prettier --write \"**/*.{ts,vue}\"",
+    "format": "prettier --write \"src/**/*.{ts,vue}\"",
     "generate": "./scripts/generate.sh",
     "proxy": "./scripts/proxy.sh"
   },
@@ -16,7 +16,8 @@
     "vue": "^2.5.22",
     "vue-class-component": "^6.0.0",
     "vue-property-decorator": "^7.0.0",
-    "vue-resize": "^0.4.5"
+    "vue-resize": "^0.4.5",
+    "vue-router": "^3.0.2"
   },
   "devDependencies": {
     "@improbable-eng/grpc-web": "^0.8.0",

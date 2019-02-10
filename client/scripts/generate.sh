@@ -4,7 +4,7 @@
 PROTOC_GEN_TS_PATH="./node_modules/.bin/protoc-gen-ts"
 
 # Directory to write generated code to (.js and .d.ts files)
-OUT_DIR="./gen"
+OUT_DIR="./node_modules/@gen"
 mkdir -p ${OUT_DIR}
 
 PROTO_FILES="$(find protos/ -type f -name '*.proto')"

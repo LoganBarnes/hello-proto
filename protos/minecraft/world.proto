@@ -8,6 +8,9 @@ package minecraft;
 service World {
     rpc ModifyWorld (WorldActionRequest) returns (Errors);
     rpc WorldUpdates (ClientData) returns (stream WorldUpdate);
+
+    // tmp
+    rpc SayHello (HelloRequest) returns (HelloReply);
 }
 
 message Errors {
@@ -16,4 +19,16 @@ message Errors {
 
 message ClientData {
     string name = 1;
+}
+
+/*
+ * Temporary debug messagaes
+ */
+
+message HelloRequest {
+    string name = 1;
+}
+
+message HelloReply {
+    string message = 1;
 }

@@ -1,4 +1,4 @@
-import SharedState from './SharedState';
+import SharedState from '@/engine/SharedState';
 
 /**
  * Handles the main game loop logic
