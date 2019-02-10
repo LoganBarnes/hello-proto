@@ -40,8 +40,8 @@ cmake -E chdir build cmake --build . # build project
 #### Run server (CTRL + C to quit)
 
 ```bash
-# The address argument is optional and defaults to 0.0.0.0:50055
-./build/hello_server 0.0.0.0:50055
+# The address argument is optional and defaults to 0.0.0.0:9090
+./build/bin/hello_server 0.0.0.0:50055
 ```
 
 ## Client
@@ -124,7 +124,7 @@ pushd server
 cmake -E make_directory build        && \
 cmake -E chdir build cmake ..        && \
 cmake -E chdir build cmake --build . && \
-./build/hello_server &
+./build/bin/hello_server &
 
 # move to client directory
 popd

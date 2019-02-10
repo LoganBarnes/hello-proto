@@ -6,7 +6,7 @@
     "serve": "vue-cli-service serve",
     "build": "vue-cli-service build",
     "lint": "vue-cli-service lint",
-    "format": "prettier --write \"**/*.{ts,vue}\"",
+    "format": "prettier --write \"src/**/*.{ts,vue}\"",
     "generate": "./scripts/generate.sh",
     "proxy": "./scripts/proxy.sh"
   },
