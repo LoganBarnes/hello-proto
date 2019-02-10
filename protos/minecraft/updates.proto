@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+import "minecraft/components.proto";
+
+package minecraft;
+
+message WorldUpdate {
+    oneof update {
+        BlockAdded block_added = 1;
+    }
+}
+
+message BlockAdded {
+    Block block = 1;
+}

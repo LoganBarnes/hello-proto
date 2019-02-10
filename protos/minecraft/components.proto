@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package minecraft;
+
+message Block {
+    IVec3 position = 1;
+    // Type eventually
+}
+
+enum BlockFace {
+    POS_X = 0;
+    POS_Y = 1;
+    POS_Z = 2;
+    NEG_X = 3;
+    NEG_Y = 4;
+    NEG_Z = 5;
+}
+
+message IVec3 {
+    sint32 x = 1;
+    sint32 y = 2;
+    sint32 z = 3;
+}

@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+import "minecraft/requests.proto";
+import "minecraft/updates.proto";
+
+package minecraft;
+
+service World {
+    rpc ModifyWorld (WorldActionRequest) returns (Errors);
+    rpc WorldUpdates (ClientData) returns (stream WorldUpdate);
+}
+
+message Errors {
+    string error_message = 1;
+}
+
+message ClientData {
+    string name = 1;
+}

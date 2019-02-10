@@ -1,8 +1,7 @@
 cmake_minimum_required(VERSION 3.12)
-project(hello-proto LANGUAGES CXX)
+project(MinecraftServer LANGUAGES CXX)
 
-option(HELLO_USE_DEV_FLAGS "Compile with all the flags" OFF)
-option(HELLO_UPDATES_DISCONNECTED "Update third party repos" OFF)
+option(MCS_USE_DEV_FLAGS "Compile with all the flags" OFF)
 
 #############################
 ### Project Configuration ###
@@ -17,13 +16,13 @@ if (MSVC)
     set(SYSTEM_FLAGS /experimental:external /external:anglebrackets /external:W0)
 endif ()
 
-if (HELLO_USE_DEV_FLAGS)
+if (MCS_USE_DEV_FLAGS)
     if (NOT MSVC)
-        set(HELLO_COMPILE_FLAGS -Wall -Wextra -Werror -Wpedantic -Winit-self
+        set(MCS_COMPILE_FLAGS -Wall -Wextra -Werror -Wpedantic -Winit-self
                 -Wold-style-cast -Woverloaded-virtual -Wsign-conversion
                 -Wmissing-declarations -Wmissing-include-dirs -Wshadow -Wno-unknown-pragmas)
     else ()
-        set(HELLO_COMPILE_FLAGS /WX)
+        set(MCS_COMPILE_FLAGS /WX)
     endif ()
 endif ()
 
@@ -54,11 +53,18 @@ add_subdirectory(protos)
 ##################
 ### ProtoScene ###
 ##################
-add_executable(hello_server src/hello_server.cpp)
-target_link_libraries(hello_server PRIVATE hello_protos)
+file(GLOB_RECURSE MINECRAFT_SERVER_SOURCE_FILES
+        LIST_DIRECTORIES false
+        CONFIGURE_DEPENDS
+        ${CMAKE_CURRENT_LIST_DIR}/src/*
+        )
 
-target_compile_options(hello_server PUBLIC ${HELLO_COMPILE_FLAGS})
-set_target_properties(hello_server PROPERTIES
+add_executable(minecraft_server ${MINECRAFT_SERVER_SOURCE_FILES})
+target_link_libraries(minecraft_server PRIVATE minecraft_protos)
+target_include_directories(minecraft_server PUBLIC ${CMAKE_CURRENT_LIST_DIR}/src)
+
+target_compile_options(minecraft_server PUBLIC ${MCS_COMPILE_FLAGS})
+set_target_properties(minecraft_server PROPERTIES
         CXX_CLANG_TIDY "${DO_CLANG_TIDY}"
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
         )

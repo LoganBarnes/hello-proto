@@ -12,14 +12,14 @@ file(MAKE_DIRECTORY ${PROTO_DST_DIR})
 
 function(create_proto_library target_name proto_dir)
     # gather proto files
-    file(GLOB_RECURSE HELLO_PROTO_FILES
+    file(GLOB_RECURSE MC_PROTO_FILES
             LIST_DIRECTORIES false
             CONFIGURE_DEPENDS
             ${proto_dir}/*.proto
             )
 
     # generate service objects
-    grpc_generate_cpp(GRPC_SRCS GRPC_HDRS ${PROTO_SRC_DIR} ${PROTO_DST_DIR} ${HELLO_PROTO_FILES})
+    grpc_generate_cpp(GRPC_SRCS GRPC_HDRS ${PROTO_SRC_DIR} ${PROTO_DST_DIR} ${MC_PROTO_FILES})
 
     add_library(${target_name} ${GRPC_HDRS} ${GRPC_SRCS})
     target_link_libraries(${target_name}
@@ -29,4 +29,4 @@ function(create_proto_library target_name proto_dir)
     target_include_directories(${target_name} SYSTEM PUBLIC ${PROTO_DST_DIR})
 endfunction()
 
-create_proto_library(hello_protos ${PROTO_SRC_DIR}/hello)
+create_proto_library(minecraft_protos ${PROTO_SRC_DIR}/minecraft)

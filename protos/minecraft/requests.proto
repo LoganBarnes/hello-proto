@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+import "minecraft/components.proto";
+
+package minecraft;
+
+message WorldActionRequest {
+    oneof action {
+        AddAdjacentBlockRequest add_adjacent_block = 1;
+    }
+}
+
+message AddAdjacentBlockRequest {
+    Block existing_block = 1;
+    BlockFace adjacent_direction = 2;
+}
