@@ -40,7 +40,7 @@ cmake -E chdir build cmake --build . # build project
 #### Run server (CTRL + C to quit)
 
 ```bash
-# The address argument is optional and defaults to 0.0.0.0:50055
+# The address argument is optional and defaults to 0.0.0.0:9090
 ./build/hello_server 0.0.0.0:50055
 ```
 
