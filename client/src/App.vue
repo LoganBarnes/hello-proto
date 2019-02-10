@@ -1,59 +1,45 @@
 <template>
   <div id="app">
-    <h1>Hello, gRPC!</h1>
-    <SendButton msg="Larry" @send-msg="sendMessage" />
-    <SendButton msg="Curly" @send-msg="sendMessage" />
-    <SendButton msg="Moe" @send-msg="sendMessage" />
-    <p>Server response:</p>
-    <p v-if="grpcErrors">
-      <font color="red">{{ grpcErrors }}</font>
-    </p>
-    <p v-else>
-      <font color="green">{{ grpcResponse }}</font>
-    </p>
+    <!-- <AirWaves
+      ref="airWaves"
+      :gameLoop="gameLoop"
+      :sharedState="sharedState"
+    ></AirWaves> -->
+    <!-- <GUI></GUI> -->
   </div>
 </template>
 
 <script lang="ts">
-import { Component, Vue } from 'vue-property-decorator';
-import SendButton from './components/SendButton.vue';
-import { HelloRequest, HelloReply } from '../gen/hello/hello_pb';
-import { GreeterClient, ServiceError } from '../gen/hello/hello_pb_service';
-import { grpc } from '@improbable-eng/grpc-web';
+import Vue from 'vue';
+import Component from 'vue-class-component';
+import GameLoop from '@/engine/GameLoop';
+import SharedState from '@/engine/SharedState';
 
 @Component({
   components: {
-    SendButton,
+    // AirWaves,
   },
 })
 export default class App extends Vue {
-  // Local proxy server that forwards calls to and from the actual server
-  private client: GreeterClient | null = new GreeterClient(
-    'http://' + process.env.VUE_APP_PROXY_ADDRESS
-  );
-  private grpcResponse: string = '';
-  private grpcErrors: string = '';
+  // public $refs!: {
+  // airWaves: AirWaves;
+  // };
+  private gameLoop: GameLoop;
+  private sharedState: SharedState;
 
-  public sendMessage(msg: string): void {
-    if (!this.client) {
-      return;
-    }
-    const request = new HelloRequest();
-    request.setName(msg);
+  constructor() {
+    super();
+    this.gameLoop = new GameLoop(() => undefined, () => undefined);
+    this.sharedState = this.gameLoop.sharedState;
+  }
 
-    this.client.sayHello(
-      request,
-      new grpc.Metadata(),
-      (error: ServiceError | null, response: HelloReply | null) => {
-        if (error) {
-          this.grpcResponse = '';
-          this.grpcErrors = 'Error: ' + error.message;
-        } else {
-          this.grpcErrors = '';
-          this.grpcResponse = !response ? 'null' : response.getMessage();
-        }
-      }
-    );
+  public mounted() {
+    // const airWaves = this.$refs.airWaves as AirWaves;
+
+    // this.gameLoop.updateFunction = airWaves.updateVMP.bind(airWaves);
+    // this.gameLoop.renderFunction = airWaves.renderVMP.bind(airWaves);
+
+    this.gameLoop.runLoop();
   }
 }
 </script>
@@ -65,6 +51,8 @@ export default class App extends Vue {
   -moz-osx-font-smoothing: grayscale;
   text-align: center;
   color: #2c3e50;
-  margin-top: 60px;
+  background-color: black;
+  width: 100vw;
+  height: 100vh;
 }
 </style>
