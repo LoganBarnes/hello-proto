@@ -2,7 +2,6 @@ cmake_minimum_required(VERSION 3.12)
 project(hello-proto LANGUAGES CXX)
 
 option(HELLO_USE_DEV_FLAGS "Compile with all the flags" OFF)
-option(HELLO_UPDATES_DISCONNECTED "Update third party repos" OFF)
 
 #############################
 ### Project Configuration ###

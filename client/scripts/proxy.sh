@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 
 # If SERVER_ADDRESS is not already set, get it from the .env files
-if [ ! -z "$SERVER_ADDRESS" ]; then
+if [ -z "$SERVER_ADDRESS" ]; then
   [ -f .env ] && export $(grep -v '^#' .env | xargs)
   [ -f .env.local ] && export $(grep -v '^#' .env.local | xargs)
 fi
+
+echo "SERVER_ADDRESS: $SERVER_ADDRESS"
 
 # Split the SERVER_ADDRESS into its host and port values
 HOST_PORT_ARRAY=(${SERVER_ADDRESS//:/ })
@@ -15,6 +17,9 @@ fi
 
 HOST=${HOST_PORT_ARRAY[0]}
 PORT=${HOST_PORT_ARRAY[1]}
+
+echo "HOST: $HOST"
+echo "PORT: $PORT"
 
 echo "Building proxy image"
 docker build \
