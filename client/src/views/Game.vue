@@ -1,5 +1,5 @@
 <template>
-  <div id="app">
+  <div id="game">
     <!-- <AirWaves
       ref="airWaves"
       :gameLoop="gameLoop"
@@ -45,13 +45,7 @@ export default class App extends Vue {
 </script>
 
 <style>
-#app {
-  font-family: 'Avenir', Helvetica, Arial, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-align: center;
-  color: #2c3e50;
-  background-color: black;
+#game {
   width: 100vw;
   height: 100vh;
 }

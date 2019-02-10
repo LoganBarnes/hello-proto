@@ -1,16 +1,9 @@
 <template>
-  <div id="app">
-    <h1>Hello, gRPC!</h1>
-    <SendButton msg="Larry" @send-msg="sendMessage" />
-    <SendButton msg="Curly" @send-msg="sendMessage" />
-    <SendButton msg="Moe" @send-msg="sendMessage" />
-    <p>Server response:</p>
-    <p v-if="grpcErrors">
-      <font color="red">{{ grpcErrors }}</font>
-    </p>
-    <p v-else>
-      <font color="green">{{ grpcResponse }}</font>
-    </p>
+  <div id="home">
+    <div id="nav">
+      <router-link to="/game">Play!</router-link>
+    </div>
+    <h1>McMinecraft</h1>
   </div>
 </template>
 
