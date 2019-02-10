@@ -11,12 +11,16 @@
     "proxy": "./scripts/proxy.sh"
   },
   "dependencies": {
+    "gl-matrix": "^3.0.0",
+    "ts-graphics": "^1.0.5",
     "vue": "^2.5.22",
     "vue-class-component": "^6.0.0",
-    "vue-property-decorator": "^7.0.0"
+    "vue-property-decorator": "^7.0.0",
+    "vue-resize": "^0.4.5"
   },
   "devDependencies": {
     "@improbable-eng/grpc-web": "^0.8.0",
+    "@types/gl-matrix": "^2.4.5",
     "@types/google-protobuf": "^3.2.7",
     "@vue/cli-plugin-babel": "^3.4.0",
     "@vue/cli-plugin-typescript": "^3.4.0",
