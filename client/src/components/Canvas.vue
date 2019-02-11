@@ -1,5 +1,12 @@
 <template>
-  <canvas id="canvas" tabindex="1">
+  <canvas
+    id="canvas"
+    tabindex="1"
+    @mousedown.left="inputHandler.handleMousePress($event)"
+  >
+    <!-- @mousedown.left="if (viewer) viewer.handleMousePress;" -->
+    <!-- @mouseup.left="if (viewer) viewer.handleMouseRelease;" -->
+    <!-- @mousemove.left="if (viewer) viewer.handleMouseMove;" -->
     HTML5 canvas is not supported in this browser :(
   </canvas>
 </template>
@@ -8,6 +15,7 @@
 import Vue from 'vue';
 import Component from 'vue-class-component';
 import { vec2 } from 'gl-matrix';
+import { Viewer, EmptyViewer } from '@/minecraft/Viewer';
 
 /**
  *
@@ -15,6 +23,7 @@ import { vec2 } from 'gl-matrix';
 @Component
 export default class Canvas3d extends Vue {
   private gl: null | WebGLRenderingContext = null;
+  private inputHandler: Viewer = new EmptyViewer();
 
   /**
    * Initializes WebGL when the canvas is ready.
@@ -36,24 +45,20 @@ export default class Canvas3d extends Vue {
     canvas.width = canvas.clientWidth;
     canvas.height = canvas.clientHeight;
 
-    /* tslint:disable:no-bitwise */
-    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-    /* tslint:enable:no-bitwise */
+    // /* tslint:disable:no-bitwise */
+    // gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    // /* tslint:enable:no-bitwise */
   }
 
   /**
    * Adjust the canvas when the window is resized
    */
-  public resize(): void {
+  public resize(): vec2 {
     const canvas: HTMLCanvasElement = this.$el as HTMLCanvasElement;
     canvas.width = canvas.clientWidth;
     canvas.height = canvas.clientHeight;
 
-    const gl: WebGLRenderingContext = this.gl as WebGLRenderingContext;
-    /* tslint:disable:no-bitwise */
-    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-    /* tslint:enable:no-bitwise */
-    // gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
+    return vec2.fromValues(canvas.width, canvas.height);
   }
 
   /**
@@ -76,12 +81,19 @@ export default class Canvas3d extends Vue {
     return this.gl as WebGLRenderingContext;
   }
 
-  public width(): number {
-    return (this.$el as HTMLCanvasElement).clientWidth;
+  /*
+   * Setters
+   */
+
+  set viewer(inputHandler: Viewer) {
+    this.inputHandler = inputHandler;
+
+    const canvas: HTMLCanvasElement = this.$el as HTMLCanvasElement;
+    this.inputHandler.resize(canvas.width, canvas.height);
   }
 
-  public height(): number {
-    return (this.$el as HTMLCanvasElement).clientHeight;
+  get viewer(): Viewer {
+    return this.inputHandler;
   }
 }
 </script>

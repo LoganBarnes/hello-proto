@@ -17,6 +17,7 @@
 <script lang="ts">
 import { Component, Watch, Vue } from 'vue-property-decorator';
 import Canvas3d from '@/components/Canvas.vue';
+import ObservableWorld from '@/minecraft/ObservableWorld';
 
 @Component({
   components: {
@@ -24,6 +25,15 @@ import Canvas3d from '@/components/Canvas.vue';
   },
 })
 export default class Home extends Vue {
+  private world: ObservableWorld | null = null;
+
+  public mounted() {
+    const canvas: Canvas3d = this.$refs.canvas as Canvas3d;
+
+    this.world = new ObservableWorld(canvas.glContext);
+    (this.$refs.canvas as Canvas3d).viewer = this.world.viewer;
+  }
+
   /**
    * Pass resize events to the canvas so it can update
    * the appropriate variables.
