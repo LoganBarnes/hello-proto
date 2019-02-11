@@ -56,6 +56,7 @@ class Observer implements Viewer {
    * @param event The mouse event
    */
   public handleMousePress(event: MouseEvent): void {
+    event.preventDefault();
     const ctrlPressed = event.ctrlKey || event.metaKey;
     this.movementType = ctrlPressed ? CameraMovement.Pan : CameraMovement.Orbit;
     this.previousScreenPosition = ViewerUtil.getScreenPos(event);
@@ -81,6 +82,7 @@ class Observer implements Viewer {
     if (this.movementType === CameraMovement.None) {
       return;
     }
+    event.preventDefault();
 
     const currentScreenPosition: vec2 | null = ViewerUtil.getScreenPos(event);
 
