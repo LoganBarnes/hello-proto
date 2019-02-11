@@ -3,10 +3,9 @@
     id="canvas"
     tabindex="1"
     @mousedown.left="inputHandler.handleMousePress($event)"
+    @mouseup.left="inputHandler.handleMouseRelease($event)"
+    @mousemove.left="inputHandler.handleMouseMove($event)"
   >
-    <!-- @mousedown.left="if (viewer) viewer.handleMousePress;" -->
-    <!-- @mouseup.left="if (viewer) viewer.handleMouseRelease;" -->
-    <!-- @mousemove.left="if (viewer) viewer.handleMouseMove;" -->
     HTML5 canvas is not supported in this browser :(
   </canvas>
 </template>
