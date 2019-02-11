@@ -30,6 +30,10 @@ class Observer implements Viewer {
     this.movementType = CameraMovement.None;
     this.previousScreenPosition = null;
     this.viewport = vec2.create();
+
+    this.cameraMover.offsetFromAnchor = 5.0;
+    this.cameraMover.pitch(-23.0);
+    this.cameraMover.yaw(37.0);
   }
 
   public getCamera(): Camera {

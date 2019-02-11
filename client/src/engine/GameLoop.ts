@@ -19,8 +19,8 @@ class GameLoop {
    * @param renderFunction The initial game render function
    */
   constructor(
-    updateFunction: (sharedState?: SharedState) => void,
-    renderFunction: (sharedState?: SharedState) => void
+    updateFunction: (sharedState: SharedState) => void,
+    renderFunction: (sharedState: SharedState) => void
   ) {
     this.timeOfLastIterationMilliseconds = 0;
     this.accumulator = 0;
@@ -79,11 +79,11 @@ class GameLoop {
     return this.state;
   }
 
-  set updateFunction(updateFunction: (sharedState?: SharedState) => void) {
+  set updateFunction(updateFunction: (sharedState: SharedState) => void) {
     this.updateFunction = updateFunction;
   }
 
-  set renderFunction(renderFunction: (sharedState?: SharedState) => void) {
+  set renderFunction(renderFunction: (sharedState: SharedState) => void) {
     this.renderFunction = renderFunction;
   }
 }

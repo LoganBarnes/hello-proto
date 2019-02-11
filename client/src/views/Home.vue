@@ -9,7 +9,7 @@
       <router-link to="/game">Play!</router-link>
     </div>
     <div v-else>
-      <font color="gray">(Playing requires a keyboard and mouse)</font>
+      <font color="gray">Advanced interaction not available on mobile</font>
     </div>
   </div>
 </template>
@@ -32,6 +32,8 @@ export default class Home extends Vue {
 
     this.world = new ObservableWorld(canvas.glContext);
     (this.$refs.canvas as Canvas3d).viewer = this.world.viewer;
+
+    this.world.run();
   }
 
   /**

@@ -5,6 +5,9 @@
     @mousedown.left="inputHandler.handleMousePress($event)"
     @mouseup.left="inputHandler.handleMouseRelease($event)"
     @mousemove.left="inputHandler.handleMouseMove($event)"
+    @touchstart.left="inputHandler.handleMousePress($event)"
+    @touchend.left="inputHandler.handleMouseRelease($event)"
+    @touchmove.left="inputHandler.handleMouseMove($event)"
   >
     HTML5 canvas is not supported in this browser :(
   </canvas>
@@ -37,16 +40,10 @@ export default class Canvas3d extends Vue {
     }
     this.gl = gl;
 
-    gl.clearColor(1.0, 0.5, 0.1, 1.0);
-
     canvas.focus();
 
     canvas.width = canvas.clientWidth;
     canvas.height = canvas.clientHeight;
-
-    // /* tslint:disable:no-bitwise */
-    // gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-    // /* tslint:enable:no-bitwise */
   }
 
   /**
