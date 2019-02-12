@@ -11,6 +11,8 @@ MinecraftServer::MinecraftServer(const std::string& host_address) {
     builder.RegisterService(&service_);
     builder.AddListeningPort(host_address, grpc::InsecureServerCredentials());
 
+    tmp_test_thread_ = std::thread([this] { service_.loop(); });
+
     server_ = builder.BuildAndStart();
 }
 

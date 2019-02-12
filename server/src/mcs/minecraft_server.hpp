@@ -5,6 +5,7 @@
 
 // third-party
 #include <grpc++/server.h>
+#include <thread>
 
 namespace mcs {
 
@@ -17,6 +18,8 @@ public:
 private:
     mcs::WorldService service_;
     std::unique_ptr<grpc::Server> server_;
+
+    std::thread tmp_test_thread_;
 };
 
 } // namespace mcs

@@ -26,6 +26,9 @@ if (MCS_USE_DEV_FLAGS)
     endif ()
 endif ()
 
+set(THREADS_PREFER_PTHREAD_FLAG ON)
+find_package(Threads REQUIRED)
+
 # "Glob is terrible/root of all evil" yeah yeah. CONFIGURE_DEPENDS in cmake 3.12
 # helps to fix that and it is super useful when refactoring
 cmake_policy(SET CMP0009 NEW)
@@ -60,7 +63,10 @@ file(GLOB_RECURSE MINECRAFT_SERVER_SOURCE_FILES
         )
 
 add_executable(minecraft_server ${MINECRAFT_SERVER_SOURCE_FILES})
-target_link_libraries(minecraft_server PRIVATE minecraft_protos)
+target_link_libraries(minecraft_server PRIVATE
+        minecraft_protos
+        Threads::Threads
+        )
 target_include_directories(minecraft_server PUBLIC ${CMAKE_CURRENT_LIST_DIR}/src)
 
 target_compile_options(minecraft_server PUBLIC ${MCS_COMPILE_FLAGS})

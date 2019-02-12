@@ -3,7 +3,7 @@
     <h1>McMinecraft</h1>
     <div id="canvas-wrapper">
       <canvas-3d ref="canvas"></canvas-3d>
-      <resize-observer @notify="handleResize" />
+      <resize-observer @notify="handleResize"/>
     </div>
     <div v-if="!mobileDetected()" id="nav">
       <router-link to="/game">Play!</router-link>
@@ -18,6 +18,8 @@
 import { Component, Watch, Vue } from 'vue-property-decorator';
 import Canvas3d from '@/components/Canvas.vue';
 import ObservableWorld from '@/minecraft/ObservableWorld';
+import MinecraftServer from '@/net/MinecraftServer';
+
 
 @Component({
   components: {
@@ -26,6 +28,7 @@ import ObservableWorld from '@/minecraft/ObservableWorld';
 })
 export default class Home extends Vue {
   private world: ObservableWorld | null = null;
+  private server: MinecraftServer = new MinecraftServer();
 
   public mounted() {
     const canvas: Canvas3d = this.$refs.canvas as Canvas3d;

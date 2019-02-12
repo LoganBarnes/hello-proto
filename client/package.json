@@ -11,6 +11,7 @@
     "proxy": "./scripts/proxy.sh"
   },
   "dependencies": {
+    "@types/uuid": "^3.4.4",
     "gl-matrix": "^3.0.0",
     "ts-graphics": "^1.0.5",
     "vue": "^2.5.22",
