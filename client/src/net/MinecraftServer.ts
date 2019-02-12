@@ -3,7 +3,6 @@ import { WorldUpdate } from '@gen/minecraft/updates_pb';
 import {
   WorldClient,
   ResponseStream,
-  ServiceError,
   Status,
 } from '@gen/minecraft/world_pb_service';
 import { v4 as uuid } from 'uuid';
@@ -13,10 +12,10 @@ class MinecraftServer {
     'http://' + process.env.VUE_APP_PROXY_ADDRESS
   );
   private updateStream: ResponseStream<WorldUpdate>;
-  private updateCallback: (update: WorldUpdate) => void;
+  private userUpdateCallback: (update: WorldUpdate) => void;
 
   constructor() {
-    this.updateCallback = (update: WorldUpdate) => undefined; // empty
+    this.userUpdateCallback = (update: WorldUpdate) => undefined; // empty
 
     const id: string = uuid();
     const clientData: ClientData = new ClientData();
@@ -29,8 +28,12 @@ class MinecraftServer {
     this.updateStream.on('status', this.processStatus.bind(this));
   }
 
+  set updateCallback(callback: (update: WorldUpdate) => void) {
+    this.userUpdateCallback = callback;
+  }
+
   private processUpdate(update: WorldUpdate): void {
-    this.updateCallback(update);
+    this.userUpdateCallback(update);
   }
 
   private processEndStream(): void {

@@ -4,6 +4,16 @@ import Observer from '@/minecraft/Observer';
 import { Viewer } from '@/minecraft/Viewer';
 import GameLoop from '@/engine/GameLoop';
 import SharedState from '@/engine/SharedState';
+import { WorldUpdate, BlockAdded } from '@gen/minecraft/updates_pb';
+import { Block, IVec3 } from '@gen/minecraft/components_pb';
+
+// TODO move this to a util class
+function fromProto(proto: IVec3 | undefined): vec3 {
+  if (proto) {
+    return vec3.fromValues(proto.getX(), proto.getY(), proto.getZ());
+  }
+  return vec3.create();
+}
 
 class ObservableWorld {
   private gl: WebGLRenderingContext;
@@ -21,18 +31,28 @@ class ObservableWorld {
     );
 
     gl.clearColor(0.1, 0.1, 0.1, 1.0);
-
-    // for testing until this is dynamic
-    this.world.addBlock(vec3.fromValues(-1, 0, 0));
-    this.world.addBlock(vec3.fromValues(0, -1, 0));
-    this.world.addBlock(vec3.fromValues(0, 0, -1));
-    this.world.addBlock(vec3.fromValues(1, 0, 0));
-    this.world.addBlock(vec3.fromValues(0, 1, 0));
-    this.world.addBlock(vec3.fromValues(0, 0, 1));
   }
 
   public run(): void {
     this.gameLoop.runLoop();
+  }
+
+  public handleServerUpdate(update: WorldUpdate) {
+    switch (update.getUpdateCase()) {
+      case WorldUpdate.UpdateCase.BLOCK_ADDED: {
+        const blockAdded = update.getBlockAdded() as BlockAdded;
+        let block: Block = new Block();
+        if (blockAdded.hasBlock()) {
+          block = blockAdded.getBlock() as Block;
+        }
+        this.world.addBlock(fromProto(block.getPosition()));
+        break;
+      }
+
+      case WorldUpdate.UpdateCase.UPDATE_NOT_SET: {
+        break;
+      }
+    }
   }
 
   private update(sharedState: SharedState): void {

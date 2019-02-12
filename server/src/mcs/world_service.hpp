@@ -27,7 +27,7 @@ public:
     void loop() {
         int x = 0;
         int y = 0;
-        int increment = 1;
+        int increment = -1;
         minecraft::WorldUpdate update;
         minecraft::IVec3* position = update.mutable_block_added()->mutable_block()->mutable_position();
 
@@ -43,10 +43,12 @@ public:
             }
 
             position->set_x(x);
+            position->set_y(y);
             x += increment;
 
             {
                 std::lock_guard<std::mutex> lock(client_mutex_);
+                std::cout << "Sending " << update.ShortDebugString() << std::endl;
                 for (Client* client : clients_) {
                     if (!client->writer->Write(update)) {
                         // client stream is closed
