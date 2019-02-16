@@ -8,6 +8,7 @@ cmake --version
 
 # install deps
 apt update
+apt install -y apt-transport-https
 
 # yarn repo
 curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add -
