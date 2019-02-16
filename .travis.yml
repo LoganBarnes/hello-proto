@@ -1,6 +1,6 @@
 branches:
   only:
-    - master
+    - minecraft
 
 dist: xenial
 
