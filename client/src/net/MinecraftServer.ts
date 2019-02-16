@@ -1,9 +1,10 @@
-import { ClientData } from '@gen/minecraft/world_pb';
+import { ClientData, HelloRequest, HelloReply } from '@gen/minecraft/world_pb';
 import { WorldUpdate } from '@gen/minecraft/updates_pb';
 import {
   WorldClient,
   ResponseStream,
   Status,
+  ServiceError,
 } from '@gen/minecraft/world_pb_service';
 import { v4 as uuid } from 'uuid';
 
@@ -26,6 +27,17 @@ class MinecraftServer {
     this.updateStream.on('data', this.processUpdate.bind(this));
     this.updateStream.on('end', this.processEndStream.bind(this));
     this.updateStream.on('status', this.processStatus.bind(this));
+
+    const request: HelloRequest = new HelloRequest();
+    request.setName('Larry');
+
+    this.client.sayHello(
+      request,
+      (error: ServiceError | null, response: HelloReply | null) => {
+        console.error(error);
+        console.log(response);
+      }
+    );
   }
 
   set updateCallback(callback: (update: WorldUpdate) => void) {
