@@ -22,7 +22,7 @@ int main(int argc, const char* argv[]) {
 }
 #else
 // project
-#include "async_server.hpp"
+#include "net/async_server.hpp"
 
 // generated
 #include <minecraft/world.grpc.pb.h>
@@ -44,11 +44,16 @@ grpc::Status say_hello(const minecraft::HelloRequest& request, minecraft::HelloR
     return grpc::Status::OK;
 }
 
+//void world_updates(const minecraft::ClientData& request) {
+//    std::cout << "Client '" << request.name() << "' connected" << std::endl;
+//}
+
 } // namespace
 
 int main() {
     net::AsyncServer<minecraft::World> minecraft_server(/*port=*/9090u);
 
+    //    minecraft_server.register_server_stream_rpc(&minecraft::World::AsyncService::RequestWorldUpdates, &world_updates);
     minecraft_server.register_unary_rpc(&minecraft::World::AsyncService::RequestSayHello, &say_hello);
 
     minecraft_server.run();

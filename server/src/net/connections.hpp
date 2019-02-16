@@ -18,17 +18,28 @@ using UnaryRpcFunction = void (Service::*)(grpc::ServerContext*,
                                            grpc::ServerCompletionQueue*,
                                            void*);
 
+/**
+ * @brief The function signature for an async service's server-side-streaming RPC calls
+ */
+template <typename Service, typename Request, typename Response>
+using ServerStreamRpcFunction = void (Service::*)(grpc::ServerContext* context,
+                                                  Request*,
+                                                  grpc::ServerAsyncWriter<Response>*,
+                                                  grpc::CompletionQueue*,
+                                                  grpc::ServerCompletionQueue*,
+                                                  void*);
+
 namespace detail {
 
-//template <typename Response>
-//class ServerToClientStream {
-//public:
-//    virtual ~ServerToClientStream() = 0;
-//    virtual bool write(const Response& update) = 0;
-//};
-//
-//template <typename Response>
-//ServerToClientStream<Response>::~ServerToClientStream() = default;
+template <typename Response>
+class ServerToClientStream {
+public:
+    virtual ~ServerToClientStream() = 0;
+    virtual bool write(const Response& response) = 0;
+};
+
+template <typename Response>
+ServerToClientStream<Response>::~ServerToClientStream() = default;
 
 struct Connection {
     virtual ~Connection() = 0;

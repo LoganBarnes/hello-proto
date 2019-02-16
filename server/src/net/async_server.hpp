@@ -1,7 +1,7 @@
 #pragma once
 
 // project
-#include "server_states.hpp"
+#include "net/server_states.hpp"
 
 // third-party
 #include <grpcpp/server.h>
@@ -60,11 +60,45 @@ public:
      * server.register_unary_rpc(&echo::Echo::AsyncService::RequestTestEcho, test_echo_callback);
      * .........................................
      *
-     * @param unary_rpc_function
-     * @param callback
+     * @param rpc_function - The unary RPC function
+     * @param callback - What to do when this RPC is triggered <grpc::Status(const Request&, Response*)>
      */
     template <typename BaseService, typename Request, typename Response, typename Callback>
-    void register_unary_rpc(UnaryRpcFunction<BaseService, Request, Response> unary_rpc_function, Callback&& callback);
+    void register_unary_rpc(UnaryRpcFunction<BaseService, Request, Response> rpc_function, Callback&& callback);
+
+    /**
+     * @brief This specifies what will happen when a server-side streaming rpc call is triggered by the client.
+     *
+     * .............In 'echo.proto'.............
+     *
+     * package echo;
+     *
+     * service Echo {
+     *     rpc EchoStream (EchoRequest) returns (stream EchoResponse);
+     * }
+     * .........................................
+     *
+     * ..............In 'echo.cpp'..............
+     *
+     * AsyncServer<echo::Echo> server("0.0.0.0:50051");
+     *
+     * // The callback that will be executed when a client calls 'EchoStream'
+     * auto echo_stream_callback = [] (const echo::EchoRequest* request) {
+     *                               *response = request;
+     *                                return grpc::Status::OK;
+     *                           };
+     *
+     * server.register_unary_rpc(&echo::Echo::AsyncService::RequestEchoStream, echo_stream_callback);
+     * .........................................
+     *
+     * @param rpc_function - The server-side-streaming rpc function
+     * @param callback - What to do when this RPC is first triggered <void(const Request&)>
+     * @return the stream used to write Responses to the client
+     */
+    template <typename BaseService, typename Request, typename Response, typename Callback>
+    detail::ServerToClientStream<Response>
+    register_server_stream_rpc(ServerStreamRpcFunction<BaseService, Request, Response> rpc_function,
+                               Callback&& callback);
 
     void run();
 

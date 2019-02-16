@@ -1,6 +1,6 @@
 #pragma once
 
-#include "connections.hpp"
+#include "net/connections.hpp"
 
 #include <variant>
 
