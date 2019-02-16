@@ -34,8 +34,8 @@ class MinecraftServer {
     this.client.sayHello(
       request,
       (error: ServiceError | null, response: HelloReply | null) => {
-        console.error(error);
-        console.log(response);
+        // console.error(error);
+        // console.log(response);
       }
     );
   }
