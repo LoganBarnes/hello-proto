@@ -5,8 +5,13 @@ import "google/protobuf/empty.proto";
 package hello.proto;
 
 service Greeter {
+    // Typical RPC usage
     rpc SayHello (HelloRequest) returns (HelloResponse);
     rpc GetAllTransactions (google.protobuf.Empty) returns (stream HelloTransaction);
+
+    // Continuous client-streaming RPC
+    rpc MaybeSayHello(HelloRequest) returns (google.protobuf.Empty);
+    rpc GetTransactionUpdates (google.protobuf.Empty) returns (stream HelloTransaction);
 }
 
 message HelloRequest {

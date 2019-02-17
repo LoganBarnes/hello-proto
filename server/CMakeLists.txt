@@ -6,7 +6,7 @@ option(HELLO_USE_DEV_FLAGS "Compile with all the flags" OFF)
 #############################
 ### Project Configuration ###
 #############################
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
@@ -53,8 +53,15 @@ add_subdirectory(protos)
 ##################
 ### ProtoScene ###
 ##################
-add_executable(hello_server src/hello_server.cpp)
+add_executable(hello_server
+        src/hello_server.cpp
+        src/net/async_server.hpp
+        src/net/connections.hpp
+        src/net/server_states.hpp
+        src/net/server_to_client_stream.hpp
+        )
 target_link_libraries(hello_server PRIVATE hello_protos)
+target_include_directories(hello_server PRIVATE src)
 
 target_compile_options(hello_server PUBLIC ${HELLO_COMPILE_FLAGS})
 set_target_properties(hello_server PROPERTIES

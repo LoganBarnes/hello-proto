@@ -55,26 +55,13 @@ export default class App extends Vue {
     const request: HelloRequest = new HelloRequest();
     request.setName(name);
 
-    transaction.setRequest(request);
-
-    this.client.sayHello(
+    this.client.maybeSayHello(
       request,
       new grpc.Metadata(),
-      (error: ServiceError | null, response: HelloResponse | null) => {
+      (error: ServiceError | null, response: Empty | null) => {
         if (error) {
-          const errorResponse: HelloResponse = new HelloResponse();
-          errorResponse.setMessage('ERROR');
-          transaction.setResponse(errorResponse);
-
           this.grpcErrors = 'Error: ' + error.message;
-        } else if (response) {
-          this.grpcErrors = '';
-          transaction.setResponse(response);
-        } else {
-          // assert?
         }
-
-        this.grpcTransactions.push(transaction);
       }
     );
   }
@@ -83,14 +70,27 @@ export default class App extends Vue {
     if (!this.client) {
       return;
     }
-    const transactions: ResponseStream<
-      HelloTransaction
-    > = this.client.getAllTransactions(new Empty());
 
+    const client: GreeterClient = this.client;
     const grpcTransactions: HelloTransaction[] = this.grpcTransactions;
 
+    let transactions: ResponseStream<HelloTransaction>;
+
+    transactions = this.client.getAllTransactions(new Empty());
+
+    // Receive all existing transactions
     transactions.on('data', (message: HelloTransaction) => {
       grpcTransactions.push(message);
+    });
+
+    transactions.on('end', () => {
+      // All existing transactions received. Set up a stream
+      // to wait for continuous updates from the server.
+      transactions = client.getTransactionUpdates(new Empty());
+
+      transactions.on('data', (message: HelloTransaction) => {
+        grpcTransactions.push(message);
+      });
     });
   }
 }
