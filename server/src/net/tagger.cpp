@@ -39,7 +39,6 @@ unsigned Tagger::count(void* data) {
 }
 
 #ifdef DOCTEST_LIBRARY_INCLUDED
-
 struct TestTag {
     int unused = 1;
     void* data = &unused;
@@ -87,7 +86,7 @@ TEST_CASE("[net] test Tagger") {
         CHECK(count == 0);
     }
 
-    // Check invalid input
+    // invalid input
     {
         CHECK_THROWS(tagger.get_tag(nullptr));
         CHECK(tagger.count(nullptr) == 0);

@@ -17,6 +17,9 @@ struct Tag {
     void* data;
 };
 
+/**
+ * @brief
+ */
 class Tagger {
 public:
     void* make_tag(TagLabel label, void* data);
