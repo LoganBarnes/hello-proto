@@ -75,9 +75,7 @@ struct RpcCall : RpcCallHandle<Service> {
         return std::move(connection_);
     }
 
-    void disconnect(void* server_to_client_stream) override {
-        disconnect_callback_(static_cast<ServerToClientStream<Response>*>(server_to_client_stream));
-    }
+    void disconnect(void* server_to_client_stream) override { disconnect_callback_(server_to_client_stream); }
 
 private:
     RpcFunc rpc_function_;
@@ -86,47 +84,6 @@ private:
     DisconnectCallback disconnect_callback_;
     std::unique_ptr<RpcConnection> connection_;
 };
-//
-//template <typename Service,
-//          typename BaseService,
-//          typename Request,
-//          typename Response,
-//          typename ConnectCallback,
-//          typename DisconnectCallback>
-//struct ServerStreamRpcCall : RpcCallHandle<Service> {
-//
-//    ServerStreamRpcFunction<BaseService, Request, Response> server_stream_rpc_function;
-//    Request request;
-//    ConnectCallback connect_callback;
-//    DisconnectCallback disconnect_callback;
-//    std::unique_ptr<ServerStreamRpcConnection<Response>> connection = nullptr;
-//
-//    ServerStreamRpcCall(ServerStreamRpcFunction<BaseService, Request, Response> rpc_function,
-//                        ConnectCallback&& callback_function,
-//                        DisconnectCallback&& disconnect_callback_function)
-//        : server_stream_rpc_function(rpc_function), connect_callback(callback_function), connection(nullptr) {}
-//
-//    void queue_next_client_connection(Service* service, grpc::ServerCompletionQueue* queue, Tagger* tagger) override {
-//
-//        connection = std::make_unique<ServerStreamRpcConnection<Response>>(tagger);
-//
-//        connection->context.AsyncNotifyWhenDone(tagger->make_tag(TagLabel::rpc_finished, connection.get()));
-//
-//        (service->*server_stream_rpc_function)(&connection->context,
-//                                               &request,
-//                                               &connection->responder,
-//                                               queue,
-//                                               queue,
-//                                               tagger->make_tag(TagLabel::rpc_call_requested_by_client, this));
-//    }
-//
-//    std::unique_ptr<Connection> extract_active_connection() override {
-//        connect_callback(request, &connection->stream);
-//        return std::move(connection);
-//    }
-//
-//    void disconnect(void* data) override { disconnect_callback(static_cast<ServerToClientStream<Response>*>(data)); }
-//};
 
 template <typename Service,
           typename BaseService,
@@ -135,12 +92,24 @@ template <typename Service,
           typename ConnectCallback,
           typename DisconnectCallback>
 std::unique_ptr<detail::RpcCallHandle<Service>>
-make_rpc_call_handle(UnaryRpcFunction<BaseService, Request, Response> unary_rpc_function, ConnectCallback&& callback) {
+make_rpc_call_handle(UnaryRpcFunction<BaseService, Request, Response> unary_rpc_function,
+                     ConnectCallback&& connect_callback,
+                     DisconnectCallback&& disconnect_callback) {
 
     static_assert(std::is_base_of<BaseService, Service>::value, "BaseService must be a base class of Service");
 
-    using UnaryRpc = detail::UnaryRpcCall<Service, BaseService, Request, Response, ConnectCallback>;
-    return std::make_unique<UnaryRpc>(unary_rpc_function, std::forward<ConnectCallback>(callback));
+    using UnaryRpc = detail::RpcCall<Service,
+                                     BaseService,
+                                     Request,
+                                     Response,
+                                     grpc::ServerAsyncResponseWriter,
+                                     UnaryRpcConnection<Response>,
+                                     ConnectCallback,
+                                     DisconnectCallback>;
+
+    return std::make_unique<UnaryRpc>(unary_rpc_function,
+                                      std::forward<ConnectCallback>(connect_callback),
+                                      std::forward<DisconnectCallback>(disconnect_callback));
 }
 
 template <typename Service,
@@ -151,12 +120,30 @@ template <typename Service,
           typename DisconnectCallback>
 std::unique_ptr<detail::RpcCallHandle<Service>>
 make_rpc_call_handle(ServerStreamRpcFunction<BaseService, Request, Response> server_stream_rpc_function,
-                     ConnectCallback&& callback) {
+                     ConnectCallback&& connect_callback,
+                     DisconnectCallback&& disconnect_callback) {
 
     static_assert(std::is_base_of<BaseService, Service>::value, "BaseService must be a base class of Service");
 
-    using ServerStreamRpc = detail::ServerStreamRpcCall<Service, BaseService, Request, Response, ConnectCallback>;
-    return std::make_unique<ServerStreamRpc>(server_stream_rpc_function, std::forward<ConnectCallback>(callback));
+    auto callback_wrapper
+        = [connect_callback](const Request& request,
+                             ServerToClientStream<Response>* stream) -> std::unique_ptr<grpc::Status> {
+        connect_callback(request, stream);
+        return nullptr;
+    };
+
+    using ServerStreamRpc = detail::RpcCall<Service,
+                                            BaseService,
+                                            Request,
+                                            Response,
+                                            grpc::ServerAsyncWriter,
+                                            ServerStreamRpcConnection<Response>,
+                                            decltype(callback_wrapper),
+                                            DisconnectCallback>;
+
+    return std::make_unique<ServerStreamRpc>(server_stream_rpc_function,
+                                             std::move(callback_wrapper),
+                                             std::forward<DisconnectCallback>(disconnect_callback));
 }
 
 } // namespace detail

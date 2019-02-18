@@ -12,6 +12,11 @@
 #include <variant>
 
 namespace net {
+namespace detail {
+struct Empty {
+    void operator()(void*) {}
+};
+} // namespace detail
 
 /**
  * @brief
@@ -64,10 +69,10 @@ public:
      * @param rpc_function - The unary RPC function
      * @param callback - What to do when this RPC is triggered <grpc::Status(const Request&, Response*)>
      */
-    template <typename RpcFunction, typename ConnectCallback, typename DisconnectCallback>
+    template <typename RpcFunction, typename ConnectCallback, typename DisconnectCallback = detail::Empty>
     void register_rpc(RpcFunction rpc_function,
                       ConnectCallback&& connect_callback,
-                      DisconnectCallback&& disconnect_callback = [] {});
+                      DisconnectCallback&& disconnect_callback = detail::Empty{});
 
     void run();
 
@@ -79,7 +84,7 @@ private:
     std::unique_ptr<grpc::Server> server_;
 
     detail::Tagger tagger_;
-    std::unordered_map<void*, std::unique_ptr<detail::RpcCall<AsyncService>>> rpc_calls_;
+    std::unordered_map<void*, std::unique_ptr<detail::RpcCallHandle<AsyncService>>> rpc_calls_;
     std::unordered_map<void*, std::unique_ptr<detail::Connection>> active_connections_;
     std::unordered_map<void*, void*> connections_to_rpc_calls_;
 };
@@ -98,10 +103,14 @@ AsyncServer<Service>::AsyncServer(unsigned port) : service_(std::make_unique<Asy
 }
 
 template <typename Service>
-template <typename RpcFunction, typename Callback>
-void AsyncServer<Service>::register_rpc(RpcFunction rpc_function, Callback&& callback) {
+template <typename RpcFunction, typename ConnectCallback, typename DisconnectCallback>
+void AsyncServer<Service>::register_rpc(RpcFunction rpc_function,
+                                        ConnectCallback&& connect_callback,
+                                        DisconnectCallback&& disconnect_callback) {
 
-    auto rpc_handle = detail::make_rpc_call_handle<AsyncService>(rpc_function, std::forward<Callback>(callback));
+    auto rpc_handle = detail::make_rpc_call_handle<AsyncService>(rpc_function,
+                                                                 std::forward<ConnectCallback>(connect_callback),
+                                                                 std::forward<DisconnectCallback>(disconnect_callback));
 
     rpc_handle->queue_next_client_connection(service_.get(), server_queue_.get(), &tagger_);
 
@@ -125,7 +134,7 @@ void AsyncServer<Service>::run() {
         case detail::TagLabel::rpc_call_requested_by_client: {
             std::cout << "rpc_call_requested_by_client" << std::endl;
             assert(call_ok);
-            auto rpc_call = static_cast<detail::RpcCall<AsyncService>*>(tag.data);
+            auto rpc_call = static_cast<detail::RpcCallHandle<AsyncService>*>(tag.data);
 
             auto active_connection = rpc_call->extract_active_connection();
 
@@ -154,7 +163,8 @@ void AsyncServer<Service>::run() {
             if (tag_count == 0) {
                 std::cout << "Erase" << std::endl;
                 void* rpc_id = connections_to_rpc_calls_.at(tag.data);
-                rpc_calls_.at(rpc_id)->disconnect() active_connections_.erase(tag.data);
+                rpc_calls_.at(rpc_id)->disconnect(tag.data);
+                active_connections_.erase(tag.data);
             }
             break;
 
