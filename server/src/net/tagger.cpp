@@ -1,7 +1,7 @@
 #include "tagger.hpp"
 
 // generated
-#include "testing/hello_tests.hpp"
+#include "testing/testing.hpp"
 
 // standard
 #include <cassert>

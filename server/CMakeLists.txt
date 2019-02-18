@@ -7,7 +7,7 @@ option(HELLO_BUILD_TESTS "Use doctest to build unit tests" OFF)
 #############################
 ### Project Configuration ###
 #############################
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
@@ -87,16 +87,13 @@ if (${HELLO_BUILD_TESTS})
         FetchContent_Populate(doctest_dl)
     endif ()
 
-    set(AUTO_GENERATION_MESSAGE "***This file is auto generated. If you modify it the changes will be overwritten.***")
-    configure_file(src/testing/hello_tests.hpp.in ${CMAKE_BINARY_DIR}/gen/testing/hello_tests.hpp)
-
     add_executable(hello_tests src/testing/hello_tests.cpp ${HELLO_SERVER_SOURCE_FILES})
     target_link_libraries(hello_tests PRIVATE hello_protos)
     target_include_directories(hello_tests PRIVATE
             src
             ${doctest_dl_SOURCE_DIR}
-            ${CMAKE_BINARY_DIR}/gen
             )
+    target_compile_definitions(hello_tests PRIVATE -DBUILD_WITH_TESTS)
 
     target_compile_options(hello_tests PUBLIC ${HELLO_COMPILE_FLAGS})
     set_target_properties(hello_tests PROPERTIES

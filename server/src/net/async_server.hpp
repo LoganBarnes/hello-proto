@@ -142,7 +142,7 @@ void AsyncServer<Service>::run() {
 
             auto active_connection = rpc_call->extract_active_connection();
 
-            if (!tagger_.has_data(active_connection.get())) {
+            if (tagger_.count(active_connection.get()) != 0u) {
                 active_connection->process();
             }
             void* connection_id = active_connection.get();
