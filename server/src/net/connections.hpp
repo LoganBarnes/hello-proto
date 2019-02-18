@@ -1,5 +1,7 @@
 #pragma once
 
+#include "net/tagger.hpp"
+
 #include <grpcpp/server.h>
 #include <grpcpp/server_context.h>
 
@@ -14,13 +16,13 @@ namespace net {
  */
 namespace detail {
 template <typename Response>
-struct ServerStreamResponses;
+struct ServerStreamRpcConnection;
 } // namespace detail
 
 template <typename Response>
 class ServerToClientStream {
 public:
-    ServerToClientStream(void* tag, detail::ServerStreamResponses<Response>* responses);
+    ServerToClientStream(detail::ServerStreamRpcConnection<Response>* connection);
 
     /**
      * @brief
@@ -33,8 +35,7 @@ public:
     void finish(const grpc::Status& status);
 
 private:
-    void* tag_;
-    detail::ServerStreamResponses<Response>* responses_;
+    detail::ServerStreamRpcConnection<Response>* connection_;
 };
 
 namespace detail {
@@ -43,8 +44,7 @@ enum class ProcessState { processing, finished };
 
 struct Connection {
     virtual ~Connection() = 0;
-    virtual void* get_tag() = 0;
-    virtual ProcessState process() = 0;
+    virtual void process() = 0;
 };
 
 inline Connection::~Connection() = default;
@@ -54,17 +54,24 @@ inline Connection::~Connection() = default;
  * @tparam Request
  * @tparam Response
  */
-template <typename Request, typename Response>
+template <typename Response>
 struct UnaryRpcConnection : Connection {
+    Tagger* tagger;
     grpc::ServerContext context;
-    Request request;
+    Response response;
+    grpc::Status status;
     grpc::ServerAsyncResponseWriter<Response> responder;
+    ProcessState state;
 
-    UnaryRpcConnection() : responder(&context) {}
+    explicit UnaryRpcConnection(Tagger* tgr) : tagger(tgr), responder(&context), state(ProcessState::processing) {}
     ~UnaryRpcConnection() override = default;
 
-    void* get_tag() override { return this; }
-    ProcessState process() override { return ProcessState::finished; }
+    void process() override {
+        if (state == ProcessState::processing) {
+            responder.Finish(response, status, tagger->make_tag(TagLabel::processing, this));
+            state = ProcessState::finished;
+        }
+    }
 };
 
 /**
@@ -72,87 +79,78 @@ struct UnaryRpcConnection : Connection {
  * @tparam Response
  */
 template <typename Response>
-struct ServerStreamResponses {
-    grpc::ServerAsyncWriter<Response> responder;
+struct ServerStreamRpcConnection : Connection {
+    Tagger* tagger;
+    grpc::ServerContext context;
     std::unique_ptr<grpc::Status> status;
+    grpc::ServerAsyncWriter<Response> responder;
     std::queue<Response> queue;
     ProcessState state;
+    ServerToClientStream<Response> response;
 
-    explicit ServerStreamResponses(grpc::ServerContext* context)
-        : responder(context), state(ProcessState::processing) {}
-};
+    explicit ServerStreamRpcConnection(Tagger* tgr)
+        : tagger(tgr), responder(&context), state(ProcessState::processing), response(this) {}
 
-/**
- * @brief
- * @tparam Request
- * @tparam Response
- */
-template <typename Request, typename Response>
-struct ServerStreamRpcConnection : Connection {
-    grpc::ServerContext context;
-    Request request;
-    ServerStreamResponses<Response> responses;
-    ServerToClientStream<Response> stream;
-
-    ServerStreamRpcConnection() : responses(&context), stream(get_tag(), &responses) {}
     ~ServerStreamRpcConnection() override = default;
 
-    void* get_tag() override { return this; }
+    void process() override {
+        if (state == ProcessState::finished) {
+            return;
+        }
 
-    ProcessState process() override {
         // The current state has just been processed so we can pop it from the queue
-        if (!responses.queue.empty()) {
-            responses.queue.pop();
+        if (!queue.empty()) {
+            queue.pop();
         }
 
         // If more responses need to be processed then write the next one to the stream
-        if (!responses.queue.empty()) {
-            responses.responder.Write(responses.queue.front(), get_tag());
-            std::cout << "Stream write: " << get_tag() << std::endl;
-            return ProcessState::processing;
+        if (!queue.empty()) {
+            responder.Write(queue.front(), tagger->make_tag(detail::TagLabel::processing, this));
         }
 
         // If the user has finished the with stream and set the status then call 'Finish'
         // on the stream. We will only reach this point if the queue is already empty.
-        if (responses.status != nullptr) {
-            responses.responder.Finish(*responses.status, get_tag());
-            std::cout << "Stream finish: " << get_tag() << std::endl;
-            responses.status = nullptr; // Don't call finish again.
-            responses.state = ProcessState::finished;
-            return ProcessState::processing;
+        else if (status != nullptr) {
+            responder.Finish(*status, tagger->make_tag(detail::TagLabel::processing, this));
+            state = ProcessState::finished;
         }
-
-        return responses.state;
     }
 };
 
 } // namespace detail
 
 template <typename Response>
-ServerToClientStream<Response>::ServerToClientStream(void* tag, detail::ServerStreamResponses<Response>* responses)
-    : tag_(tag), responses_(responses) {}
+ServerToClientStream<Response>::ServerToClientStream(detail::ServerStreamRpcConnection<Response>* connection)
+    : connection_(connection) {}
 
 template <typename Response>
 void ServerToClientStream<Response>::write(const Response& response) {
+    if (connection_->state == detail::ProcessState::finished) {
+        return;
+    }
+
     // If there are no responses queued then write directly to the stream
-    if (responses_->queue.empty()) {
-        responses_->responder.Write(response, tag_);
-        std::cout << "Stream write: " << tag_ << std::endl;
+    if (connection_->queue.empty()) {
+        connection_->responder.Write(response,
+                                     connection_->tagger->make_tag(detail::TagLabel::processing, connection_));
     }
     // Queue the current response until it is processed by the server queue
-    responses_->queue.push(response);
+    connection_->queue.push(response);
 }
 
 template <typename Response>
 void ServerToClientStream<Response>::finish(const grpc::Status& status) {
+    if (connection_->state == detail::ProcessState::finished) {
+        return;
+    }
+
     // If there are no responses queued then write directly to the stream
-    if (responses_->queue.empty()) {
-        responses_->responder.Finish(status, tag_);
-        std::cout << "Stream finish: " << tag_ << std::endl;
-        responses_->state = detail::ProcessState::finished;
+    if (connection_->queue.empty()) {
+        connection_->responder.Finish(status, connection_->tagger->make_tag(detail::TagLabel::processing, connection_));
+        connection_->state = detail::ProcessState::finished;
     } else {
         // Otherwise save the status to be processed when there are no more responses queued
-        responses_->status = std::make_unique<grpc::Status>(status);
+        connection_->status = std::make_unique<grpc::Status>(status);
     }
 }
 

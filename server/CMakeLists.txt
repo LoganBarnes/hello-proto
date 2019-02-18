@@ -53,13 +53,13 @@ add_subdirectory(protos)
 ##################
 ### ProtoScene ###
 ##################
-add_executable(hello_server
-        src/hello_server.cpp
-        src/net/async_server.hpp
-        src/net/connections.hpp
-        src/net/server_states.hpp
-        src/net/server_to_client_stream.hpp
+file(GLOB_RECURSE HELLO_SERVER_SOURCE_FILES
+        LIST_DIRECTORIES false
+        CONFIGURE_DEPENDS
+        ${CMAKE_CURRENT_LIST_DIR}/src/*
         )
+
+add_executable(hello_server ${HELLO_SERVER_SOURCE_FILES})
 target_link_libraries(hello_server PRIVATE hello_protos)
 target_include_directories(hello_server PRIVATE src)
 

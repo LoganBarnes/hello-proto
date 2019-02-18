@@ -111,11 +111,16 @@ public:
                                  return maybe_say_hello(request, response);
                              });
 
+        // TODO: add callback for stream disconnect
         server_.register_rpc(&proto::Greeter::AsyncService::RequestGetTransactionUpdates,
                              [this](const google::protobuf::Empty& /*request*/,
                                     net::ServerToClientStream<proto::HelloTransaction>* stream) {
                                  this->client_streams_.emplace(stream);
-                                 std::cout << "Received TransactionUpdates RPC request\n" << std::endl;
+                                 std::cout << "Received TransactionUpdates RPC request" << std::endl;
+                             },
+                             [this](net::ServerToClientStream<proto::HelloTransaction>* stream) {
+                                 this->client_streams_.erase(stream);
+                                 std::cout << "Removed TransactionUpdates RPC request" << std::endl;
                              });
     }
 
@@ -127,7 +132,7 @@ private:
     std::unordered_set<net::ServerToClientStream<proto::HelloTransaction>*> client_streams_;
 
     grpc::Status say_hello(const proto::HelloRequest& request, proto::HelloResponse* response) {
-        std::cout << "Received SayHello RPC request\n" << std::endl;
+        std::cout << "Received SayHello RPC request" << std::endl;
 
         response->set_message("Hello, " + request.name() + "!");
 
@@ -142,7 +147,7 @@ private:
 
     void get_all_transactions(const google::protobuf::Empty& /*request*/,
                               net::ServerToClientStream<proto::HelloTransaction>* stream) {
-        std::cout << "Received GetAllTransactions RPC request\n" << std::endl;
+        std::cout << "Received GetAllTransactions RPC request" << std::endl;
 
         for (const auto& transaction : transactions_) {
             stream->write(transaction);
@@ -152,7 +157,7 @@ private:
     }
 
     grpc::Status maybe_say_hello(const proto::HelloRequest& request, google::protobuf::Empty* /*response*/) {
-        std::cout << "Received MaybeSayHello RPC request\n" << std::endl;
+        std::cout << "Received MaybeSayHello RPC request" << std::endl;
 
         proto::HelloTransaction transaction;
         *transaction.mutable_request() = request;

@@ -8,7 +8,7 @@
 #include <grpcpp/server_builder.h>
 
 // standard
-#include <unordered_map>
+#include <unordered_set>
 #include <variant>
 
 namespace net {
@@ -64,60 +64,28 @@ public:
      * @param rpc_function - The unary RPC function
      * @param callback - What to do when this RPC is triggered <grpc::Status(const Request&, Response*)>
      */
-    template <typename RpcFunction, typename Callback>
-    void register_rpc(RpcFunction rpc_function, Callback&& callback);
-    //    template <typename BaseService, typename Request, typename Response, typename Callback>
-    //    void register_unary_rpc(UnaryRpcFunction<BaseService, Request, Response> rpc_function, Callback&& callback);
-
-    /**
-     * @brief This specifies what will happen when a server-side streaming rpc call is triggered by the client.
-     *
-     * .............In 'echo.proto'.............
-     *
-     * package echo;
-     *
-     * service Echo {
-     *     rpc EchoStream (EchoRequest) returns (stream EchoResponse);
-     * }
-     * .........................................
-     *
-     * ..............In 'echo.cpp'..............
-     *
-     * AsyncServer<echo::Echo> server("0.0.0.0:50051");
-     *
-     * // The callback that will be executed when a client calls 'EchoStream'
-     * auto echo_stream_callback = [] (const echo::EchoRequest* request) {
-     *                               *response = request;
-     *                                return grpc::Status::OK;
-     *                           };
-     *
-     * server.register_unary_rpc(&echo::Echo::AsyncService::RequestEchoStream, echo_stream_callback);
-     * .........................................
-     *
-     * @param rpc_function - The server-side-streaming rpc function
-     * @param callback - What to do when this RPC is first triggered <void(const Request&)>
-     * @return the stream used to write Responses to the client
-     */
-    template <typename BaseService, typename Request, typename Response, typename Callback>
-    void register_server_stream_rpc(ServerStreamRpcFunction<BaseService, Request, Response> rpc_function,
-                                    Callback&& callback);
+    template <typename RpcFunction, typename ConnectCallback, typename DisconnectCallback>
+    void register_rpc(RpcFunction rpc_function,
+                      ConnectCallback&& connect_callback,
+                      DisconnectCallback&& disconnect_callback = [] {});
 
     void run();
 
-    void operator()(detail::InactiveRpcCall& inactive_rpc);
-    void operator()(detail::ActiveRpcCall& active_rpc);
-    void operator()(detail::FinishedRpcCall& finished_rcp);
-
 private:
-    std::unique_ptr<typename Service::AsyncService> service_;
+    using AsyncService = typename Service::AsyncService;
+
+    std::unique_ptr<AsyncService> service_;
     std::unique_ptr<grpc::ServerCompletionQueue> server_queue_;
     std::unique_ptr<grpc::Server> server_;
 
-    std::unordered_map<void*, std::unique_ptr<detail::ServerAction>> server_actions_;
+    detail::Tagger tagger_;
+    std::unordered_map<void*, std::unique_ptr<detail::RpcCall<AsyncService>>> rpc_calls_;
+    std::unordered_map<void*, std::unique_ptr<detail::Connection>> active_connections_;
+    std::unordered_map<void*, void*> connections_to_rpc_calls_;
 };
 
 template <typename Service>
-AsyncServer<Service>::AsyncServer(unsigned port) : service_(std::make_unique<typename Service::AsyncService>()) {
+AsyncServer<Service>::AsyncServer(unsigned port) : service_(std::make_unique<AsyncService>()) {
     std::string host_address = "0.0.0.0:" + std::to_string(port);
 
     std::cout << "Server running at " << host_address << std::endl;
@@ -133,87 +101,65 @@ template <typename Service>
 template <typename RpcFunction, typename Callback>
 void AsyncServer<Service>::register_rpc(RpcFunction rpc_function, Callback&& callback) {
 
-    auto tag_action_pair = detail::make_inactive_rpc(service_.get(),
-                                                     server_queue_.get(),
-                                                     rpc_function,
-                                                     std::forward<Callback>(callback));
+    auto rpc_handle = detail::make_rpc_call_handle<AsyncService>(rpc_function, std::forward<Callback>(callback));
 
-    server_actions_.emplace(std::move(tag_action_pair));
-}
+    rpc_handle->queue_next_client_connection(service_.get(), server_queue_.get(), &tagger_);
 
-template <typename Service>
-template <typename BaseService, typename Request, typename Response, typename Callback>
-void AsyncServer<Service>::register_server_stream_rpc(
-    ServerStreamRpcFunction<BaseService, Request, Response> rpc_function, Callback&& callback) {
-
-    server_actions_.emplace(
-        detail::make_inactive_rpc(service_.get(), server_queue_.get(), rpc_function, std::forward<Callback>(callback)));
+    void* tag_id = rpc_handle.get();
+    rpc_calls_.emplace(tag_id, std::move(rpc_handle));
 }
 
 template <typename Service>
 void AsyncServer<Service>::run() {
-    void* tag;
+    void* tag_id;
     bool call_ok;
 
-    while (server_queue_->Next(&tag, &call_ok)) {
+    while (server_queue_->Next(&tag_id, &call_ok)) {
+        detail::Tag tag{};
+        unsigned tag_count;
 
-#ifdef PRINT_CRAP
-        std::cout << std::boolalpha << "OK: " << call_ok << std::endl;
-        std::cout << "Server actions: " << server_actions_.size() << std::endl;
-        for (auto& action : server_actions_) {
-            assert(action.second);
-            std::cout << "\t" << *action.second << std::endl;
-        }
-#endif
-        std::cout << "Tag: " << tag << std::boolalpha << ", OK: " << call_ok << std::endl;
+        std::tie(tag, tag_count) = tagger_.get_tag(tag_id);
 
-        if (call_ok) {
-            if (server_actions_.find(tag) == server_actions_.end()) {
-                std::cout << "WAT" << std::endl;
+        switch (tag.label) {
+
+        case detail::TagLabel::rpc_call_requested_by_client: {
+            std::cout << "rpc_call_requested_by_client" << std::endl;
+            assert(call_ok);
+            auto rpc_call = static_cast<detail::RpcCall<AsyncService>*>(tag.data);
+
+            auto active_connection = rpc_call->extract_active_connection();
+
+            if (!tagger_.has_data(active_connection.get())) {
+                active_connection->process();
             }
-            std::visit(*this, *server_actions_.at(tag));
+            void* connection_id = active_connection.get();
+            active_connections_.emplace(connection_id, std::move(active_connection));
+            connections_to_rpc_calls_.emplace(connection_id, rpc_call);
 
-        } else {
-            std::cout << "Client disconnected 2" << std::endl;
-            //            server_actions_.erase(tag);
+            rpc_call->queue_next_client_connection(service_.get(), server_queue_.get(), &tagger_);
         }
+            continue;
+
+        case detail::TagLabel::processing:
+            std::cout << "processing" << std::endl;
+            if (call_ok) {
+                auto connection = static_cast<detail::Connection*>(tag.data);
+                connection->process();
+            }
+            [[fallthrough]];
+
+        case detail::TagLabel::rpc_finished:
+            std::cout << "rpc_finished" << std::endl;
+            // No more tags with this active_connection are left in the queue so we can delete the data
+            if (tag_count == 0) {
+                std::cout << "Erase" << std::endl;
+                void* rpc_id = connections_to_rpc_calls_.at(tag.data);
+                rpc_calls_.at(rpc_id)->disconnect() active_connections_.erase(tag.data);
+            }
+            break;
+
+        } // end switch
     }
-}
-
-template <typename Service>
-void AsyncServer<Service>::operator()(detail::InactiveRpcCall& inactive_rpc) {
-    detail::ActiveRpcCall active_rpc = inactive_rpc.get_active_rpc_call();
-
-    std::cout << "Client connected" << std::endl;
-
-    void* tag = active_rpc.get_tag();
-    server_actions_.emplace(tag, std::make_unique<detail::ServerAction>(std::move(active_rpc)));
-}
-
-template <typename Service>
-void AsyncServer<Service>::operator()(detail::ActiveRpcCall& active_rpc) {
-#ifdef PRINT_CRAP
-    std::cout << "Active" << std::endl;
-#endif
-
-    if (active_rpc.connection->process() == detail::ProcessState::finished) {
-#ifdef PRINT_CRAP
-        std::cout << "Finished" << std::endl;
-#endif
-        std::cout << "Client finished" << std::endl;
-
-        detail::FinishedRpcCall finished_rpc{std::move(active_rpc.connection)};
-
-        void* tag = finished_rpc.get_tag();
-        server_actions_[tag] = std::make_unique<detail::ServerAction>(std::move(finished_rpc));
-        // server_actions_.erase(active_rpc.get_tag());
-    }
-}
-
-template <typename Service>
-void AsyncServer<Service>::operator()(detail::FinishedRpcCall& /*finished_rcp*/) {
-    std::cout << "Client disconnected" << std::endl;
-    // server_actions_.erase(finished_rcp.get_tag());
 }
 
 } // namespace net
