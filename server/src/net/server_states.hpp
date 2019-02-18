@@ -29,7 +29,7 @@ struct RpcCallHandle {
     virtual ~RpcCallHandle() = 0;
     virtual void queue_next_client_connection(Service* service, grpc::ServerCompletionQueue* queue, Tagger* tagger) = 0;
     virtual std::unique_ptr<Connection> extract_active_connection() = 0;
-    virtual void disconnect(void* server_to_client_stream) = 0;
+    virtual void disconnect(void* connection) = 0;
 };
 
 template <typename Service>
@@ -75,7 +75,7 @@ struct RpcCall : RpcCallHandle<Service> {
         return std::move(connection_);
     }
 
-    void disconnect(void* server_to_client_stream) override { disconnect_callback_(server_to_client_stream); }
+    void disconnect(void* connection) override { disconnect_callback_(connection); }
 
 private:
     RpcFunc rpc_function_;
@@ -125,11 +125,16 @@ make_rpc_call_handle(ServerStreamRpcFunction<BaseService, Request, Response> ser
 
     static_assert(std::is_base_of<BaseService, Service>::value, "BaseService must be a base class of Service");
 
-    auto callback_wrapper
+    auto connect_callback_wrapper
         = [connect_callback](const Request& request,
                              ServerToClientStream<Response>* stream) -> std::unique_ptr<grpc::Status> {
         connect_callback(request, stream);
-        return nullptr;
+        return stream->status();
+    };
+
+    auto disconnect_callback_wrapper = [disconnect_callback](void* connection) {
+        auto server_stream_connection = static_cast<ServerStreamRpcConnection<Response>*>(connection);
+        disconnect_callback(&server_stream_connection->response);
     };
 
     using ServerStreamRpc = detail::RpcCall<Service,
@@ -138,12 +143,12 @@ make_rpc_call_handle(ServerStreamRpcFunction<BaseService, Request, Response> ser
                                             Response,
                                             grpc::ServerAsyncWriter,
                                             ServerStreamRpcConnection<Response>,
-                                            decltype(callback_wrapper),
-                                            DisconnectCallback>;
+                                            decltype(connect_callback_wrapper),
+                                            decltype(disconnect_callback_wrapper)>;
 
     return std::make_unique<ServerStreamRpc>(server_stream_rpc_function,
-                                             std::move(callback_wrapper),
-                                             std::forward<DisconnectCallback>(disconnect_callback));
+                                             std::move(connect_callback_wrapper),
+                                             std::move(disconnect_callback_wrapper));
 }
 
 } // namespace detail

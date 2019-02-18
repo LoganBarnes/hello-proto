@@ -71,27 +71,27 @@ export default class App extends Vue {
       return;
     }
 
-    // const client: GreeterClient = this.client;
-    // const grpcTransactions: HelloTransaction[] = this.grpcTransactions;
+    const client: GreeterClient = this.client;
+    const grpcTransactions: HelloTransaction[] = this.grpcTransactions;
 
-    // let transactions: ResponseStream<HelloTransaction>;
+    let transactions: ResponseStream<HelloTransaction>;
 
-    // transactions = this.client.getAllTransactions(new Empty());
+    transactions = this.client.getAllTransactions(new Empty());
 
-    // // Receive all existing transactions
-    // transactions.on('data', (message: HelloTransaction) => {
-    //   grpcTransactions.push(message);
-    // });
+    // Receive all existing transactions
+    transactions.on('data', (message: HelloTransaction) => {
+      grpcTransactions.push(message);
+    });
 
-    // transactions.on('end', () => {
-    //   // All existing transactions received. Set up a stream
-    //   // to wait for continuous updates from the server.
-    //   transactions = client.getTransactionUpdates(new Empty());
+    transactions.on('end', () => {
+      // All existing transactions received. Set up a stream
+      // to wait for continuous updates from the server.
+      transactions = client.getTransactionUpdates(new Empty());
 
-    //   transactions.on('data', (message: HelloTransaction) => {
-    //     grpcTransactions.push(message);
-    //   });
-    // });
+      transactions.on('data', (message: HelloTransaction) => {
+        grpcTransactions.push(message);
+      });
+    });
   }
 }
 </script>

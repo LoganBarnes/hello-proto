@@ -22,7 +22,7 @@ public:
     void* make_tag(TagLabel label, void* data);
     std::pair<Tag, unsigned> get_tag(void* tag_id);
 
-    bool has_data(void* data);
+    unsigned count(void* data);
 
 private:
     std::unordered_map<void*, std::unique_ptr<Tag>> tags_;

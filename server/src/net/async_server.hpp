@@ -14,7 +14,7 @@
 namespace net {
 namespace detail {
 struct Empty {
-    void operator()(void*) {}
+    void operator()(void*) const {}
 };
 } // namespace detail
 
@@ -129,6 +129,10 @@ void AsyncServer<Service>::run() {
 
         std::tie(tag, tag_count) = tagger_.get_tag(tag_id);
 
+        if (!call_ok) {
+            std::cout << "NOT OK" << std::endl;
+        }
+
         switch (tag.label) {
 
         case detail::TagLabel::rpc_call_requested_by_client: {
@@ -155,20 +159,21 @@ void AsyncServer<Service>::run() {
                 auto connection = static_cast<detail::Connection*>(tag.data);
                 connection->process();
             }
-            [[fallthrough]];
-
-        case detail::TagLabel::rpc_finished:
-            std::cout << "rpc_finished" << std::endl;
-            // No more tags with this active_connection are left in the queue so we can delete the data
-            if (tag_count == 0) {
-                std::cout << "Erase" << std::endl;
-                void* rpc_id = connections_to_rpc_calls_.at(tag.data);
-                rpc_calls_.at(rpc_id)->disconnect(tag.data);
-                active_connections_.erase(tag.data);
-            }
             break;
 
+        case detail::TagLabel::rpc_finished: {
+            std::cout << "rpc_finished" << std::endl;
+            void* rpc_id = connections_to_rpc_calls_.at(tag.data);
+            rpc_calls_.at(rpc_id)->disconnect(tag.data);
+        } break;
+
         } // end switch
+
+        if (tag_count == 0) {
+            // No more tags with this active_connection are left in the queue so we can delete the data
+            std::cout << "Erase" << std::endl;
+            active_connections_.erase(tag.data);
+        }
     }
 }
 

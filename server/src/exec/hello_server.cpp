@@ -119,8 +119,10 @@ public:
                                  std::cout << "Received TransactionUpdates RPC request" << std::endl;
                              },
                              [this](void* stream) {
-                                 this->client_streams_.erase(
-                                     static_cast<net::ServerToClientStream<proto::HelloTransaction>*>(stream));
+                                 auto stream_ptr
+                                     = static_cast<net::ServerToClientStream<proto::HelloTransaction>*>(stream);
+                                 assert(client_streams_.find(stream_ptr) != client_streams_.end());
+                                 this->client_streams_.erase(stream_ptr);
                                  std::cout << "Removed TransactionUpdates RPC request" << std::endl;
                              });
     }

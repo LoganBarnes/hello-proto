@@ -22,7 +22,7 @@ struct ServerStreamRpcConnection;
 template <typename Response>
 class ServerToClientStream {
 public:
-    ServerToClientStream(detail::ServerStreamRpcConnection<Response>* connection);
+    explicit ServerToClientStream(detail::ServerStreamRpcConnection<Response>* connection);
 
     /**
      * @brief
@@ -33,6 +33,8 @@ public:
      * @brief Only call once. After calling this function the stream should not be used anymore.
      */
     void finish(const grpc::Status& status);
+
+    std::unique_ptr<grpc::Status> status();
 
 private:
     detail::ServerStreamRpcConnection<Response>* connection_;
@@ -152,6 +154,11 @@ void ServerToClientStream<Response>::finish(const grpc::Status& status) {
         // Otherwise save the status to be processed when there are no more responses queued
         connection_->status = std::make_unique<grpc::Status>(status);
     }
+}
+
+template <typename Response>
+std::unique_ptr<grpc::Status> ServerToClientStream<Response>::status() {
+    return std::move(connection_->status);
 }
 
 } // namespace net

@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.12)
 project(hello-proto LANGUAGES CXX)
 
 option(HELLO_USE_DEV_FLAGS "Compile with all the flags" OFF)
+option(HELLO_BUILD_TESTS "Use doctest to build unit tests" OFF)
 
 #############################
 ### Project Configuration ###
@@ -56,10 +57,10 @@ add_subdirectory(protos)
 file(GLOB_RECURSE HELLO_SERVER_SOURCE_FILES
         LIST_DIRECTORIES false
         CONFIGURE_DEPENDS
-        ${CMAKE_CURRENT_LIST_DIR}/src/*
+        ${CMAKE_CURRENT_LIST_DIR}/src/net/*
         )
 
-add_executable(hello_server ${HELLO_SERVER_SOURCE_FILES})
+add_executable(hello_server src/exec/hello_server.cpp ${HELLO_SERVER_SOURCE_FILES})
 target_link_libraries(hello_server PRIVATE hello_protos)
 target_include_directories(hello_server PRIVATE src)
 
@@ -68,3 +69,38 @@ set_target_properties(hello_server PROPERTIES
         CXX_CLANG_TIDY "${DO_CLANG_TIDY}"
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
         )
+
+###############
+### Testing ###
+###############
+if (${HELLO_BUILD_TESTS})
+    include(FetchContent)
+
+    ### DocTest ###
+    FetchContent_Declare(doctest_dl
+            GIT_REPOSITORY https://github.com/onqtam/doctest.git
+            GIT_TAG 2.2.3
+            )
+
+    FetchContent_GetProperties(doctest_dl)
+    if (NOT doctest_dl_POPULATED)
+        FetchContent_Populate(doctest_dl)
+    endif ()
+
+    set(AUTO_GENERATION_MESSAGE "***This file is auto generated. If you modify it the changes will be overwritten.***")
+    configure_file(src/testing/hello_tests.hpp.in ${CMAKE_BINARY_DIR}/gen/testing/hello_tests.hpp)
+
+    add_executable(hello_tests src/testing/hello_tests.cpp ${HELLO_SERVER_SOURCE_FILES})
+    target_link_libraries(hello_tests PRIVATE hello_protos)
+    target_include_directories(hello_tests PRIVATE
+            src
+            ${doctest_dl_SOURCE_DIR}
+            ${CMAKE_BINARY_DIR}/gen
+            )
+
+    target_compile_options(hello_tests PUBLIC ${HELLO_COMPILE_FLAGS})
+    set_target_properties(hello_tests PROPERTIES
+            CXX_CLANG_TIDY "${DO_CLANG_TIDY}"
+            RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+            )
+endif ()
