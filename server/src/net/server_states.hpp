@@ -1,8 +1,32 @@
 #pragma once
 
+// project
 #include "net/connections.hpp"
+#include "testing/testing.hpp"
 
-#include <variant>
+#ifdef DOCTEST_LIBRARY_INCLUDED
+#include <google/protobuf/empty.pb.h>
+#include <hello/hello.grpc.pb.h>
+
+namespace testing {
+
+struct EmptyConnect {
+    grpc::Status operator()(const hello::proto::HelloRequest&, hello::proto::HelloResponse*) const {
+        return grpc::Status::OK;
+    }
+    std::unique_ptr<grpc::Status> operator()(const hello::proto::HelloRequest&,
+                                             net::ServerToClientStream<hello::proto::HelloTransaction>*) const {
+        return nullptr;
+    }
+    void operator()(const google::protobuf::Empty&, net::ServerToClientStream<hello::proto::HelloTransaction>*) const {}
+};
+
+struct EmptyDisconnect {
+    void operator()(void*) const {}
+};
+
+} // namespace testing
+#endif
 
 namespace net {
 
@@ -38,9 +62,13 @@ inline RpcCallHandle<Service>::~RpcCallHandle() = default;
 /**
  * @brief
  * @tparam Service
+ * @tparam BaseService
  * @tparam Request
  * @tparam Response
- * @tparam Callback
+ * @tparam Writer
+ * @tparam RpcConnection
+ * @tparam ConnectCallback
+ * @tparam DisconnectCallback
  */
 template <typename Service,
           typename BaseService,
@@ -50,8 +78,8 @@ template <typename Service,
           typename RpcConnection,
           typename ConnectCallback,
           typename DisconnectCallback>
-struct RpcCall : RpcCallHandle<Service> {
-
+class RpcCall : public RpcCallHandle<Service> {
+public:
     using RpcFunc = RpcFunction<BaseService, Request, Response, Writer>;
 
     RpcCall(RpcFunc rpc_function, ConnectCallback&& connect_callback, DisconnectCallback&& disconnect_callback)
@@ -85,6 +113,40 @@ private:
     std::unique_ptr<RpcConnection> connection_;
 };
 
+#ifdef DOCTEST_LIBRARY_INCLUDED
+template class RpcCall<hello::proto::Greeter::AsyncService,
+                       hello::proto::Greeter::AsyncService,
+                       hello::proto::HelloRequest,
+                       hello::proto::HelloResponse,
+                       grpc::ServerAsyncResponseWriter,
+                       UnaryRpcConnection<hello::proto::HelloResponse>,
+                       testing::EmptyConnect,
+                       testing::EmptyDisconnect>;
+
+template class RpcCall<hello::proto::Greeter::AsyncService,
+                       hello::proto::Greeter::AsyncService,
+                       hello::proto::HelloRequest,
+                       hello::proto::HelloTransaction,
+                       grpc::ServerAsyncWriter,
+                       ServerStreamRpcConnection<hello::proto::HelloTransaction>,
+                       testing::EmptyConnect,
+                       testing::EmptyDisconnect>;
+#endif
+
+/**
+ * @brief
+ * @tparam Service
+ * @tparam BaseService
+ * @tparam Request
+ * @tparam Response
+ * @tparam ConnectCallback
+ * @tparam DisconnectCallback
+ * @param unary_rpc_function
+ * @param connect_callback
+ * @param disconnect_callback
+ * @return
+ */
+
 template <typename Service,
           typename BaseService,
           typename Request,
@@ -112,6 +174,32 @@ make_rpc_call_handle(UnaryRpcFunction<BaseService, Request, Response> unary_rpc_
                                       std::forward<DisconnectCallback>(disconnect_callback));
 }
 
+#ifdef DOCTEST_LIBRARY_INCLUDED
+template std::unique_ptr<detail::RpcCallHandle<hello::proto::Greeter::AsyncService>>
+make_rpc_call_handle<hello::proto::Greeter::AsyncService,
+                     hello::proto::Greeter::AsyncService,
+                     hello::proto::HelloRequest,
+                     hello::proto::HelloResponse,
+                     testing::EmptyConnect,
+                     testing::EmptyDisconnect>(
+    UnaryRpcFunction<hello::proto::Greeter::AsyncService, hello::proto::HelloRequest, hello::proto::HelloResponse>,
+    testing::EmptyConnect&&,
+    testing::EmptyDisconnect&&);
+#endif
+
+/**
+ * @brief
+ * @tparam Service
+ * @tparam BaseService
+ * @tparam Request
+ * @tparam Response
+ * @tparam ConnectCallback
+ * @tparam DisconnectCallback
+ * @param server_stream_rpc_function
+ * @param connect_callback
+ * @param disconnect_callback
+ * @return
+ */
 template <typename Service,
           typename BaseService,
           typename Request,
@@ -150,6 +238,20 @@ make_rpc_call_handle(ServerStreamRpcFunction<BaseService, Request, Response> ser
                                              std::move(connect_callback_wrapper),
                                              std::move(disconnect_callback_wrapper));
 }
+
+#ifdef DOCTEST_LIBRARY_INCLUDED
+template std::unique_ptr<detail::RpcCallHandle<hello::proto::Greeter::AsyncService>>
+make_rpc_call_handle<hello::proto::Greeter::AsyncService,
+                     hello::proto::Greeter::AsyncService,
+                     google::protobuf::Empty,
+                     hello::proto::HelloTransaction,
+                     testing::EmptyConnect,
+                     testing::EmptyDisconnect>(ServerStreamRpcFunction<hello::proto::Greeter::AsyncService,
+                                                                       google::protobuf::Empty,
+                                                                       hello::proto::HelloTransaction>,
+                                               testing::EmptyConnect&&,
+                                               testing::EmptyDisconnect&&);
+#endif
 
 } // namespace detail
 } // namespace net

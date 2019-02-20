@@ -87,7 +87,14 @@ if (${HELLO_BUILD_TESTS})
         FetchContent_Populate(doctest_dl)
     endif ()
 
-    add_executable(hello_tests src/testing/hello_tests.cpp ${HELLO_SERVER_SOURCE_FILES})
+    ### Testing ###
+    file(GLOB_RECURSE TESTING_SOURCE_FILES
+            LIST_DIRECTORIES false
+            CONFIGURE_DEPENDS
+            ${CMAKE_CURRENT_LIST_DIR}/src/testing/*
+            )
+
+    add_executable(hello_tests ${TESTING_SOURCE_FILES} ${HELLO_SERVER_SOURCE_FILES})
     target_link_libraries(hello_tests PRIVATE hello_protos)
     target_include_directories(hello_tests PRIVATE
             src
@@ -100,4 +107,20 @@ if (${HELLO_BUILD_TESTS})
             CXX_CLANG_TIDY "${DO_CLANG_TIDY}"
             RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
             )
+
+    ### Coverage ###
+    # add test coverage capabilities
+    find_program(LCOV_EXE
+            NAMES "lcov"
+            DOC "Path to lcov executable"
+            )
+
+    if (LCOV_EXE AND CMAKE_COMPILER_IS_GNUCXX AND CMAKE_BUILD_TYPE MATCHES "Debug")
+        include(CodeCoverage)
+        setup_target_for_coverage(hello_coverage hello_tests coverage)
+        set(PROFILE_FLAGS --coverage -fprofile-arcs -ftest-coverage -fno-inline)
+
+        target_compile_options(hello_tests PUBLIC ${PROFILE_FLAGS})
+        target_link_libraries(hello_tests PUBLIC gcov)
+    endif ()
 endif ()

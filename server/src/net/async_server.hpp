@@ -2,14 +2,11 @@
 
 // project
 #include "net/server_states.hpp"
+#include "testing/testing.hpp"
 
 // third-party
 #include <grpcpp/server.h>
 #include <grpcpp/server_builder.h>
-
-// standard
-#include <unordered_set>
-#include <variant>
 
 namespace net {
 namespace detail {
@@ -178,3 +175,13 @@ void AsyncServer<Service>::run() {
 }
 
 } // namespace net
+
+#ifdef DOCTEST_LIBRARY_INCLUDED
+#include <hello/hello.grpc.pb.h>
+
+template class net::AsyncServer<hello::proto::Greeter>;
+
+TEST_CASE("[net] test not Tagger") {
+    CHECK(true);
+}
+#endif

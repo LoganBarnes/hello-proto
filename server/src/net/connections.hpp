@@ -1,13 +1,18 @@
 #pragma once
 
+// project
 #include "net/tagger.hpp"
+#include "testing/testing.hpp"
 
-#include <grpcpp/server.h>
+// thirdparty
 #include <grpcpp/server_context.h>
 
+// standard
 #include <queue>
 
-//#define PRINT_CRAP
+#ifdef DOCTEST_LIBRARY_INCLUDED
+#include <hello/hello.grpc.pb.h>
+#endif
 
 namespace net {
 
@@ -39,6 +44,10 @@ public:
 private:
     detail::ServerStreamRpcConnection<Response>* connection_;
 };
+
+#ifdef DOCTEST_LIBRARY_INCLUDED
+template class ServerToClientStream<hello::proto::HelloResponse>;
+#endif
 
 namespace detail {
 
@@ -75,6 +84,10 @@ struct UnaryRpcConnection : Connection {
         }
     }
 };
+
+#ifdef DOCTEST_LIBRARY_INCLUDED
+template struct UnaryRpcConnection<hello::proto::HelloResponse>;
+#endif
 
 /**
  * @brief
@@ -118,6 +131,10 @@ struct ServerStreamRpcConnection : Connection {
         }
     }
 };
+
+#ifdef DOCTEST_LIBRARY_INCLUDED
+template struct ServerStreamRpcConnection<hello::proto::HelloTransaction>;
+#endif
 
 } // namespace detail
 

@@ -1,10 +1,7 @@
 #include "tagger.hpp"
 
-// generated
+// project
 #include "testing/testing.hpp"
-
-// standard
-#include <cassert>
 
 namespace net {
 namespace detail {
