@@ -16,13 +16,13 @@
 // ///////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
-#include <hello/hello.grpc.pb.h>
+#include <testing/echo.grpc.pb.h>
 
 namespace testing {
 
 struct TestClient {
-    std::shared_ptr<grpc::Channel> channel_;
-    std::unique_ptr<hello::proto::Greeter::Stub> stub_;
+    std::shared_ptr<grpc::Channel> channel;
+    std::unique_ptr<testing::proto::Echo::Stub> stub;
 
     explicit TestClient(const std::string& server_address);
 };

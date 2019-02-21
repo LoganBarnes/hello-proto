@@ -11,7 +11,7 @@
 #include <queue>
 
 #ifdef DOCTEST_LIBRARY_INCLUDED
-#include <hello/hello.grpc.pb.h>
+#include <testing/echo.grpc.pb.h>
 #endif
 
 namespace net {
@@ -46,7 +46,7 @@ private:
 };
 
 #ifdef DOCTEST_LIBRARY_INCLUDED
-template class ServerToClientStream<hello::proto::HelloResponse>;
+template class ServerToClientStream<testing::proto::EchoResponse>;
 #endif
 
 namespace detail {
@@ -56,6 +56,7 @@ enum class ProcessState { processing, finished };
 struct Connection {
     virtual ~Connection() = 0;
     virtual void process() = 0;
+    virtual void cancel() = 0;
 };
 
 inline Connection::~Connection() = default;
@@ -83,10 +84,12 @@ struct UnaryRpcConnection : Connection {
             state = ProcessState::finished;
         }
     }
+
+    void cancel() override { context.TryCancel(); }
 };
 
 #ifdef DOCTEST_LIBRARY_INCLUDED
-template struct UnaryRpcConnection<hello::proto::HelloResponse>;
+template struct UnaryRpcConnection<testing::proto::EchoResponse>;
 #endif
 
 /**
@@ -130,10 +133,12 @@ struct ServerStreamRpcConnection : Connection {
             state = ProcessState::finished;
         }
     }
+
+    void cancel() override { context.TryCancel(); }
 };
 
 #ifdef DOCTEST_LIBRARY_INCLUDED
-template struct ServerStreamRpcConnection<hello::proto::HelloTransaction>;
+template struct ServerStreamRpcConnection<testing::proto::EchoResponse>;
 #endif
 
 } // namespace detail

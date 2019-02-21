@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+import "google/protobuf/empty.proto";
+
+package testing.proto;
+
+service Echo {
+    rpc UnaryEchoTest (EchoRequest) returns (EchoResponse);
+    rpc ServerStreamEchoTest (EchoRequest) returns (stream EchoResponse);
+}
+
+message EchoRequest {
+    string message = 1;
+    int32 expected_responses = 2;
+}
+
+message EchoResponse {
+    string message = 1;
+    int32 response_number = 2;
+}

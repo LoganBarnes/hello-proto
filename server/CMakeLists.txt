@@ -87,6 +87,10 @@ if (${HELLO_BUILD_TESTS})
         FetchContent_Populate(doctest_dl)
     endif ()
 
+    ### Threads ###
+    set(THREADS_PREFER_PTHREAD_FLAG ON)
+    find_package(Threads REQUIRED)
+
     ### Testing ###
     file(GLOB_RECURSE TESTING_SOURCE_FILES
             LIST_DIRECTORIES false
@@ -95,7 +99,10 @@ if (${HELLO_BUILD_TESTS})
             )
 
     add_executable(hello_tests ${TESTING_SOURCE_FILES} ${HELLO_SERVER_SOURCE_FILES})
-    target_link_libraries(hello_tests PRIVATE hello_protos)
+    target_link_libraries(hello_tests PRIVATE
+            testing_protos
+            Threads::Threads
+            )
     target_include_directories(hello_tests PRIVATE
             src
             ${doctest_dl_SOURCE_DIR}

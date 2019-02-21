@@ -4,21 +4,24 @@
 #include "net/connections.hpp"
 #include "testing/testing.hpp"
 
+// third-party
+#include <grpcpp/completion_queue.h>
+
 #ifdef DOCTEST_LIBRARY_INCLUDED
 #include <google/protobuf/empty.pb.h>
-#include <hello/hello.grpc.pb.h>
+#include <testing/echo.grpc.pb.h>
 
 namespace testing {
 
 struct EmptyConnect {
-    grpc::Status operator()(const hello::proto::HelloRequest&, hello::proto::HelloResponse*) const {
+    grpc::Status operator()(const testing::proto::EchoRequest&, testing::proto::EchoResponse*) const {
         return grpc::Status::OK;
     }
-    std::unique_ptr<grpc::Status> operator()(const hello::proto::HelloRequest&,
-                                             net::ServerToClientStream<hello::proto::HelloTransaction>*) const {
+    std::unique_ptr<grpc::Status> operator()(const testing::proto::EchoRequest&,
+                                             net::ServerToClientStream<testing::proto::EchoResponse>*) const {
         return nullptr;
     }
-    void operator()(const google::protobuf::Empty&, net::ServerToClientStream<hello::proto::HelloTransaction>*) const {}
+    void operator()(const google::protobuf::Empty&, net::ServerToClientStream<testing::proto::EchoResponse>*) const {}
 };
 
 struct EmptyDisconnect {
@@ -114,21 +117,21 @@ private:
 };
 
 #ifdef DOCTEST_LIBRARY_INCLUDED
-template class RpcCall<hello::proto::Greeter::AsyncService,
-                       hello::proto::Greeter::AsyncService,
-                       hello::proto::HelloRequest,
-                       hello::proto::HelloResponse,
+template class RpcCall<testing::proto::Echo::AsyncService,
+                       testing::proto::Echo::AsyncService,
+                       testing::proto::EchoRequest,
+                       testing::proto::EchoResponse,
                        grpc::ServerAsyncResponseWriter,
-                       UnaryRpcConnection<hello::proto::HelloResponse>,
+                       UnaryRpcConnection<testing::proto::EchoResponse>,
                        testing::EmptyConnect,
                        testing::EmptyDisconnect>;
 
-template class RpcCall<hello::proto::Greeter::AsyncService,
-                       hello::proto::Greeter::AsyncService,
-                       hello::proto::HelloRequest,
-                       hello::proto::HelloTransaction,
+template class RpcCall<testing::proto::Echo::AsyncService,
+                       testing::proto::Echo::AsyncService,
+                       testing::proto::EchoRequest,
+                       testing::proto::EchoResponse,
                        grpc::ServerAsyncWriter,
-                       ServerStreamRpcConnection<hello::proto::HelloTransaction>,
+                       ServerStreamRpcConnection<testing::proto::EchoResponse>,
                        testing::EmptyConnect,
                        testing::EmptyDisconnect>;
 #endif
@@ -175,14 +178,14 @@ make_rpc_call_handle(UnaryRpcFunction<BaseService, Request, Response> unary_rpc_
 }
 
 #ifdef DOCTEST_LIBRARY_INCLUDED
-template std::unique_ptr<detail::RpcCallHandle<hello::proto::Greeter::AsyncService>>
-make_rpc_call_handle<hello::proto::Greeter::AsyncService,
-                     hello::proto::Greeter::AsyncService,
-                     hello::proto::HelloRequest,
-                     hello::proto::HelloResponse,
+template std::unique_ptr<detail::RpcCallHandle<testing::proto::Echo::AsyncService>>
+make_rpc_call_handle<testing::proto::Echo::AsyncService,
+                     testing::proto::Echo::AsyncService,
+                     testing::proto::EchoRequest,
+                     testing::proto::EchoResponse,
                      testing::EmptyConnect,
                      testing::EmptyDisconnect>(
-    UnaryRpcFunction<hello::proto::Greeter::AsyncService, hello::proto::HelloRequest, hello::proto::HelloResponse>,
+    UnaryRpcFunction<testing::proto::Echo::AsyncService, testing::proto::EchoRequest, testing::proto::EchoResponse>,
     testing::EmptyConnect&&,
     testing::EmptyDisconnect&&);
 #endif
@@ -240,17 +243,16 @@ make_rpc_call_handle(ServerStreamRpcFunction<BaseService, Request, Response> ser
 }
 
 #ifdef DOCTEST_LIBRARY_INCLUDED
-template std::unique_ptr<detail::RpcCallHandle<hello::proto::Greeter::AsyncService>>
-make_rpc_call_handle<hello::proto::Greeter::AsyncService,
-                     hello::proto::Greeter::AsyncService,
+template std::unique_ptr<detail::RpcCallHandle<testing::proto::Echo::AsyncService>>
+make_rpc_call_handle<testing::proto::Echo::AsyncService,
+                     testing::proto::Echo::AsyncService,
                      google::protobuf::Empty,
-                     hello::proto::HelloTransaction,
+                     testing::proto::EchoResponse,
                      testing::EmptyConnect,
-                     testing::EmptyDisconnect>(ServerStreamRpcFunction<hello::proto::Greeter::AsyncService,
-                                                                       google::protobuf::Empty,
-                                                                       hello::proto::HelloTransaction>,
-                                               testing::EmptyConnect&&,
-                                               testing::EmptyDisconnect&&);
+                     testing::EmptyDisconnect>(
+    ServerStreamRpcFunction<testing::proto::Echo::AsyncService, google::protobuf::Empty, testing::proto::EchoResponse>,
+    testing::EmptyConnect&&,
+    testing::EmptyDisconnect&&);
 #endif
 
 } // namespace detail

@@ -21,7 +21,7 @@
 namespace testing {
 
 TestClient::TestClient(const std::string& server_address)
-    : channel_(grpc::CreateChannel(server_address, grpc::InsecureChannelCredentials()))
-    , stub_(hello::proto::Greeter::NewStub(channel_)) {}
+    : channel(grpc::CreateChannel(server_address, grpc::InsecureChannelCredentials()))
+    , stub(testing::proto::Echo::NewStub(channel)) {}
 
 } // namespace testing

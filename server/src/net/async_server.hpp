@@ -8,6 +8,9 @@
 #include <grpcpp/server.h>
 #include <grpcpp/server_builder.h>
 
+// standard
+#include <mutex>
+
 namespace net {
 namespace detail {
 struct Empty {
@@ -73,6 +76,8 @@ public:
 
     void run();
 
+    void shutdown();
+
 private:
     using AsyncService = typename Service::AsyncService;
 
@@ -84,7 +89,14 @@ private:
     std::unordered_map<void*, std::unique_ptr<detail::RpcCallHandle<AsyncService>>> rpc_calls_;
     std::unordered_map<void*, std::unique_ptr<detail::Connection>> active_connections_;
     std::unordered_map<void*, void*> connections_to_rpc_calls_;
+
+    std::mutex update_lock_;
 };
+
+#ifdef DOCTEST_LIBRARY_INCLUDED
+#include <testing/echo.grpc.pb.h>
+template class net::AsyncServer<testing::proto::Echo>;
+#endif
 
 template <typename Service>
 AsyncServer<Service>::AsyncServer(unsigned port) : service_(std::make_unique<AsyncService>()) {
@@ -121,33 +133,35 @@ void AsyncServer<Service>::run() {
     bool call_ok;
 
     while (server_queue_->Next(&tag_id, &call_ok)) {
+        std::lock_guard<std::mutex> lock(update_lock_);
+
         detail::Tag tag{};
-        unsigned tag_count;
+        unsigned tag_count{};
 
         std::tie(tag, tag_count) = tagger_.get_tag(tag_id);
 
-        if (!call_ok) {
-            std::cout << "NOT OK" << std::endl;
-        }
-
         switch (tag.label) {
 
-        case detail::TagLabel::rpc_call_requested_by_client: {
+        case detail::TagLabel::rpc_call_requested_by_client:
             std::cout << "rpc_call_requested_by_client" << std::endl;
-            assert(call_ok);
-            auto rpc_call = static_cast<detail::RpcCallHandle<AsyncService>*>(tag.data);
 
-            auto active_connection = rpc_call->extract_active_connection();
+            if (call_ok) {
+                auto rpc_call = static_cast<detail::RpcCallHandle<AsyncService>*>(tag.data);
 
-            if (tagger_.count(active_connection.get()) != 0u) {
-                active_connection->process();
+                auto active_connection = rpc_call->extract_active_connection();
+
+                if (tagger_.count(active_connection.get()) != 0u) {
+                    active_connection->process();
+                }
+                void* connection_id = active_connection.get();
+                active_connections_.emplace(connection_id, std::move(active_connection));
+                connections_to_rpc_calls_.emplace(connection_id, rpc_call);
+
+                rpc_call->queue_next_client_connection(service_.get(), server_queue_.get(), &tagger_);
+
+            } else if (tag_count == 0) {
+                rpc_calls_.erase(tag_id);
             }
-            void* connection_id = active_connection.get();
-            active_connections_.emplace(connection_id, std::move(active_connection));
-            connections_to_rpc_calls_.emplace(connection_id, rpc_call);
-
-            rpc_call->queue_next_client_connection(service_.get(), server_queue_.get(), &tagger_);
-        }
             continue;
 
         case detail::TagLabel::processing:
@@ -174,14 +188,119 @@ void AsyncServer<Service>::run() {
     }
 }
 
+template <typename Server>
+void AsyncServer<Server>::shutdown() {
+    std::lock_guard<std::mutex> lock(update_lock_);
+    for (auto& connection : active_connections_) {
+        connection.second->cancel();
+    }
+    server_->Shutdown();
+    server_queue_->Shutdown();
+}
+
 } // namespace net
 
 #ifdef DOCTEST_LIBRARY_INCLUDED
-#include <hello/hello.grpc.pb.h>
+#include <testing/test_client.hpp>
+#include <thread>
 
-template class net::AsyncServer<hello::proto::Greeter>;
+namespace tp = testing::proto;
+using TestService = tp::Echo::AsyncService;
 
-TEST_CASE("[net] test not Tagger") {
-    CHECK(true);
+TEST_CASE("[net] test server can be stopped immediately with no RPCs") {
+    unsigned port = 9090u;
+    net::AsyncServer<testing::proto::Echo> server(/*port=*/port);
+
+    std::thread run_thread([&server] { server.run(); });
+
+    server.shutdown();
+    run_thread.join();
+}
+
+TEST_CASE("[net] test single unary rpc call") {
+    unsigned port = 9090u;
+
+    net::AsyncServer<testing::proto::Echo> server(/*port=*/port);
+
+    server.register_rpc(&TestService::RequestUnaryEchoTest,
+                        [](const tp::EchoRequest& request, tp::EchoResponse* response) {
+                            response->set_message(request.message());
+                            response->set_response_number(1);
+                            return grpc::Status::OK;
+                        });
+
+    std::thread run_thread([&server] { server.run(); });
+
+    std::string server_address = "0.0.0.0:" + std::to_string(port);
+    testing::TestClient client(server_address);
+
+    const char* test_message = "test message";
+
+    grpc::ClientContext context;
+    tp::EchoRequest request{};
+    request.set_message(test_message);
+    tp::EchoResponse response{};
+
+    grpc::Status status = client.stub->UnaryEchoTest(&context, request, &response);
+
+    REQUIRE(status.ok());
+    CHECK(response.message() == test_message);
+
+    server.shutdown();
+    run_thread.join();
+}
+
+TEST_CASE("[net] test single streaming rpc call") {
+    unsigned port = 9090u;
+
+    net::AsyncServer<testing::proto::Echo> server(/*port=*/port);
+
+    server.register_rpc(&TestService::RequestServerStreamEchoTest,
+                        [](const tp::EchoRequest& request, net::ServerToClientStream<tp::EchoResponse>* stream) {
+                            tp::EchoResponse response;
+                            for (int i = 0; i < request.expected_responses(); ++i) {
+                                response.set_message(request.message());
+                                response.set_response_number(i);
+                                stream->write(response);
+                            }
+                            stream->finish(grpc::Status::OK);
+                        });
+
+    std::thread run_thread([&server] { server.run(); });
+
+    std::string server_address = "0.0.0.0:" + std::to_string(port);
+    testing::TestClient client(server_address);
+
+    const char* test_message = "test message";
+    int expected_responses = 1; // Increase this to break the test.
+    //                             TODO: fix this ^
+
+    grpc::ClientContext context;
+    tp::EchoRequest request{};
+    request.set_message(test_message);
+    request.set_expected_responses(expected_responses);
+
+    std::unique_ptr<grpc::ClientReader<tp::EchoResponse>> response_reader;
+
+    response_reader = client.stub->ServerStreamEchoTest(&context, request);
+    REQUIRE(response_reader);
+
+    int i = 0;
+    for (; i < expected_responses + 1; ++i) {
+        tp::EchoResponse response{};
+
+        if (!response_reader->Read(&response)) {
+            break;
+        }
+        CHECK(response.message() == test_message);
+        CHECK(response.response_number() == i);
+    }
+    CHECK(i == expected_responses);
+
+    grpc::Status status = response_reader->Finish();
+    CHECK(status.ok());
+
+    server.shutdown();
+    run_thread.join();
 }
 #endif
