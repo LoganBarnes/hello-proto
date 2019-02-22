@@ -1,4 +1,4 @@
-#if 0
+#if 1
 // project
 #include "mcs/minecraft_server.hpp"
 
@@ -54,7 +54,7 @@ int main() {
     net::AsyncServer<minecraft::World> minecraft_server(/*port=*/9090u);
 
     //    minecraft_server.register_server_stream_rpc(&minecraft::World::AsyncService::RequestWorldUpdates, &world_updates);
-    minecraft_server.register_unary_rpc(&minecraft::World::AsyncService::RequestSayHello, &say_hello);
+    minecraft_server.register_rpc(&minecraft::World::AsyncService::RequestSayHello, &say_hello);
 
     minecraft_server.run();
 

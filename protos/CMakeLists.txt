@@ -30,3 +30,4 @@ function(create_proto_library target_name proto_dir)
 endfunction()
 
 create_proto_library(minecraft_protos ${PROTO_SRC_DIR}/minecraft)
+create_proto_library(testing_protos ${PROTO_SRC_DIR}/testing)

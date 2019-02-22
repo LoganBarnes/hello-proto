@@ -24,12 +24,16 @@ apt install -y lcov nodejs yarn
 pushd server
 function build_and_run {
     cmake -E make_directory $1
-    cmake -E chdir $1 cmake -DCMAKE_BUILD_TYPE=$2 -DMCS_USE_DEV_FLAGS=ON ..
+    cmake -E chdir $1 cmake -DCMAKE_BUILD_TYPE=$2 -DMCS_USE_DEV_FLAGS=ON -DMCS_BUILD_TESTS=ON ..
     cmake -E chdir $1 cmake --build . --parallel
+    cmake -E chdir $1 ./bin/mcs_tests
 }
 
 build_and_run cmake-build-debug Debug
 build_and_run cmake-build-release Release
+
+# explicitly run coverage build
+cmake -E chdir cmake-build-debug cmake --build . --target mcs_coverage
 popd
 
 # build client

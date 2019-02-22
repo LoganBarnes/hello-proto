@@ -2,13 +2,14 @@
 
 // project
 #include "net/server_states.hpp"
+#include "testing/testing.hpp"
 
 // third-party
 #include <grpcpp/server.h>
 #include <grpcpp/server_builder.h>
 
 // standard
-#include <variant>
+#include <mutex>
 
 namespace net {
 
@@ -63,58 +64,32 @@ public:
      * @param rpc_function - The unary RPC function
      * @param callback - What to do when this RPC is triggered <grpc::Status(const Request&, Response*)>
      */
-    template <typename BaseService, typename Request, typename Response, typename Callback>
-    void register_unary_rpc(UnaryRpcFunction<BaseService, Request, Response> rpc_function, Callback&& callback);
-
-    /**
-     * @brief This specifies what will happen when a server-side streaming rpc call is triggered by the client.
-     *
-     * .............In 'echo.proto'.............
-     *
-     * package echo;
-     *
-     * service Echo {
-     *     rpc EchoStream (EchoRequest) returns (stream EchoResponse);
-     * }
-     * .........................................
-     *
-     * ..............In 'echo.cpp'..............
-     *
-     * AsyncServer<echo::Echo> server("0.0.0.0:50051");
-     *
-     * // The callback that will be executed when a client calls 'EchoStream'
-     * auto echo_stream_callback = [] (const echo::EchoRequest* request) {
-     *                               *response = request;
-     *                                return grpc::Status::OK;
-     *                           };
-     *
-     * server.register_unary_rpc(&echo::Echo::AsyncService::RequestEchoStream, echo_stream_callback);
-     * .........................................
-     *
-     * @param rpc_function - The server-side-streaming rpc function
-     * @param callback - What to do when this RPC is first triggered <void(const Request&)>
-     * @return the stream used to write Responses to the client
-     */
-    template <typename BaseService, typename Request, typename Response, typename Callback>
-    detail::ServerToClientStream<Response>
-    register_server_stream_rpc(ServerStreamRpcFunction<BaseService, Request, Response> rpc_function,
-                               Callback&& callback);
+    template <typename RpcFunction, typename ConnectCallback, typename DisconnectCallback = detail::EmptyDisconnect>
+    void register_rpc(RpcFunction rpc_function,
+                      ConnectCallback&& connect_callback,
+                      DisconnectCallback&& disconnect_callback = {});
 
     void run();
 
-    void operator()(detail::InactiveRpcCall& inactive_rpc);
-    void operator()(detail::ActiveRpcCall& active_rpc);
+    void shutdown();
 
 private:
-    std::unique_ptr<typename Service::AsyncService> service_;
+    using AsyncService = typename Service::AsyncService;
+
+    std::unique_ptr<AsyncService> service_;
     std::unique_ptr<grpc::ServerCompletionQueue> server_queue_;
     std::unique_ptr<grpc::Server> server_;
 
-    std::unordered_map<void*, std::unique_ptr<detail::ServerAction>> server_actions_;
+    detail::Tagger tagger_;
+    std::unordered_map<void*, std::unique_ptr<detail::RpcCallHandle<AsyncService>>> rpc_calls_;
+    std::unordered_map<void*, std::unique_ptr<detail::Connection>> active_connections_;
+    std::unordered_map<void*, void*> connections_to_rpc_calls_;
+
+    std::mutex update_lock_;
 };
 
 template <typename Service>
-AsyncServer<Service>::AsyncServer(unsigned port) : service_(std::make_unique<typename Service::AsyncService>()) {
+AsyncServer<Service>::AsyncServer(unsigned port) : service_(std::make_unique<AsyncService>()) {
     std::string host_address = "0.0.0.0:" + std::to_string(port);
 
     std::cout << "Server running at " << host_address << std::endl;
@@ -127,67 +102,237 @@ AsyncServer<Service>::AsyncServer(unsigned port) : service_(std::make_unique<typ
 }
 
 template <typename Service>
-template <typename BaseService, typename Request, typename Response, typename Callback>
-void AsyncServer<Service>::register_unary_rpc(UnaryRpcFunction<BaseService, Request, Response> unary_rpc_function,
-                                              Callback&& callback) {
-    static_assert(std::is_base_of<BaseService, typename Service::AsyncService>::value,
-                  "BaseService must be a base class of Service");
+template <typename RpcFunction, typename ConnectCallback, typename DisconnectCallback>
+void AsyncServer<Service>::register_rpc(RpcFunction rpc_function,
+                                        ConnectCallback&& connect_callback,
+                                        DisconnectCallback&& disconnect_callback) {
 
-    detail::InactiveRpcCall inactive_rpc{
-        std::make_unique<detail::NonStreamingRpcCall<BaseService, Request, Response, Callback>>(service_.get(),
-                                                                                                server_queue_.get(),
-                                                                                                unary_rpc_function,
-                                                                                                std::forward<Callback>(
-                                                                                                    callback))};
+    auto rpc_handle = detail::make_rpc_call_handle<AsyncService>(rpc_function,
+                                                                 std::forward<ConnectCallback>(connect_callback),
+                                                                 std::forward<DisconnectCallback>(disconnect_callback));
 
-    void* tag = inactive_rpc.get_tag();
-    server_actions_.emplace(tag, std::make_unique<detail::ServerAction>(std::move(inactive_rpc)));
+    rpc_handle->queue_next_client_connection(service_.get(), server_queue_.get(), &tagger_);
+
+    void* tag_id = rpc_handle.get();
+    rpc_calls_.emplace(tag_id, std::move(rpc_handle));
 }
 
 template <typename Service>
 void AsyncServer<Service>::run() {
-    void* tag;
+    void* tag_id;
     bool call_ok;
 
-    while (server_queue_->Next(&tag, &call_ok)) {
+    while (server_queue_->Next(&tag_id, &call_ok)) {
+        std::lock_guard<std::mutex> lock(update_lock_);
 
-#ifdef PRINT_CRAP
-        std::cout << std::boolalpha << "OK: " << call_ok << std::endl;
-        std::cout << "Server actions: " << server_actions_.size() << std::endl;
-        for (auto& action : server_actions_) {
-            assert(action.second);
-            std::cout << "\t" << *action.second << std::endl;
-        }
-#endif
+        detail::Tag tag{};
+        unsigned tag_count{};
 
-        auto& server_action = server_actions_.at(tag);
+        std::tie(tag, tag_count) = tagger_.get_tag(tag_id);
 
-        if (call_ok) {
-            std::visit(*this, *server_action);
+        switch (tag.label) {
 
-        } else {
-            server_actions_.erase(tag);
+        case detail::TagLabel::rpc_call_requested_by_client:
+
+            if (call_ok) {
+                auto rpc_call = static_cast<detail::RpcCallHandle<AsyncService>*>(tag.data);
+
+                auto active_connection = rpc_call->extract_active_connection();
+
+                // Process the new connection if it hasn't already added itself to the queue (all connections
+                // will have at least one tag on the queue to notify us when the connection is broken).
+                if (tagger_.count(active_connection.get()) == 1u) {
+                    active_connection->add_next_tag_to_queue();
+                }
+                void* connection_id = active_connection.get();
+                active_connections_.emplace(connection_id, std::move(active_connection));
+                connections_to_rpc_calls_.emplace(connection_id, rpc_call);
+
+                rpc_call->queue_next_client_connection(service_.get(), server_queue_.get(), &tagger_);
+
+            } else if (tag_count == 0) {
+                rpc_calls_.erase(tag_id);
+            }
+            continue;
+
+        case detail::TagLabel::processing:
+            if (call_ok) {
+                auto connection = static_cast<detail::Connection*>(tag.data);
+                connection->add_next_tag_to_queue();
+            }
+            break;
+
+        case detail::TagLabel::rpc_finished: {
+            void* rpc_id = connections_to_rpc_calls_.at(tag.data);
+            rpc_calls_.at(rpc_id)->disconnect(tag.data);
+        } break;
+
+        } // end switch
+
+        if (tag_count == 0) {
+            // No more tags with this active_connection are left in the queue so we can delete the data
+            connections_to_rpc_calls_.erase(tag.data);
+            active_connections_.erase(tag.data);
         }
     }
 }
 
-template <typename Service>
-void AsyncServer<Service>::operator()(detail::InactiveRpcCall& inactive_rpc) {
-    detail::ActiveRpcCall active_rpc = inactive_rpc.get_active_rpc_call();
-
-    void* tag = active_rpc.get_tag();
-    server_actions_.emplace(tag, std::make_unique<detail::ServerAction>(std::move(active_rpc)));
-}
-
-template <typename Service>
-void AsyncServer<Service>::operator()(detail::ActiveRpcCall& active_rpc) {
-#ifdef PRINT_CRAP
-    std::cout << "Finished" << std::endl;
-#endif
-
-    if (active_rpc.finished) {
-        server_actions_.erase(active_rpc.get_tag());
+template <typename Server>
+void AsyncServer<Server>::shutdown() {
+    std::lock_guard<std::mutex> lock(update_lock_);
+    for (auto& connection : active_connections_) {
+        connection.second->cancel();
     }
+    server_->Shutdown();
+    server_queue_->Shutdown();
 }
 
 } // namespace net
+
+#ifdef DOCTEST_LIBRARY_INCLUDED
+#include <testing/test_client.hpp>
+#include <thread>
+
+template class net::AsyncServer<testing::proto::Echo>;
+
+namespace tp = testing::proto;
+using TestService = tp::Echo::AsyncService;
+
+TEST_CASE("[net] test server can be stopped immediately with no RPCs") {
+    unsigned port = 9090u;
+    net::AsyncServer<testing::proto::Echo> server(/*port=*/port);
+
+    std::thread run_thread([&server] { server.run(); });
+
+    server.shutdown();
+    run_thread.join();
+}
+
+TEST_CASE("[net] test single unary rpc call") {
+    unsigned port = 9090u;
+
+    net::AsyncServer<testing::proto::Echo> server(/*port=*/port);
+
+    server.register_rpc(&TestService::RequestUnaryEchoTest, testing::TestService{});
+
+    std::thread run_thread([&server] { server.run(); });
+
+    std::string server_address = "0.0.0.0:" + std::to_string(port);
+    testing::TestClient client(server_address);
+
+    const char* test_message = "test message";
+
+    grpc::ClientContext context;
+    tp::EchoRequest request{};
+    request.set_message(test_message);
+    tp::EchoResponse response{};
+
+    grpc::Status status = client.stub->UnaryEchoTest(&context, request, &response);
+
+    REQUIRE(status.ok());
+    CHECK(response.message() == test_message);
+
+    server.shutdown();
+    run_thread.join();
+}
+
+TEST_CASE("[net] test single streaming rpc call") {
+    unsigned port = 9090u;
+
+    net::AsyncServer<testing::proto::Echo> server(/*port=*/port);
+
+    server.register_rpc(&TestService::RequestServerStreamEchoTest, testing::TestService{});
+
+    std::thread run_thread([&server] { server.run(); });
+
+    std::string server_address = "0.0.0.0:" + std::to_string(port);
+    testing::TestClient client(server_address);
+
+    const char* test_message = "test message";
+    int expected_responses = 12;
+
+    grpc::ClientContext context;
+    tp::EchoRequest request{};
+    request.set_message(test_message);
+    request.set_expected_responses(expected_responses);
+
+    std::unique_ptr<grpc::ClientReader<tp::EchoResponse>> response_reader;
+
+    response_reader = client.stub->ServerStreamEchoTest(&context, request);
+    REQUIRE(response_reader);
+
+    int i = 0;
+    for (; i < expected_responses + 1; ++i) {
+        tp::EchoResponse response{};
+
+        if (!response_reader->Read(&response)) {
+            break;
+        }
+        CHECK(response.message() == test_message);
+        CHECK(response.response_number() == i);
+    }
+    CHECK(i == expected_responses);
+
+    grpc::Status status = response_reader->Finish();
+    CHECK(status.ok());
+
+    server.shutdown();
+    run_thread.join();
+}
+
+TEST_CASE("[net] test continuous streaming rpc call returns correct pointer on disconnect") {
+    unsigned port = 9090u;
+
+    net::AsyncServer<testing::proto::Echo> server(/*port=*/port);
+
+    void* connect_ptr = nullptr;
+    void* disconnect_ptr = nullptr;
+
+    server.register_rpc(&TestService::RequestServerStreamEchoTest,
+                        [&connect_ptr](const testing::proto::EchoRequest&,
+                                       net::ServerToClientStream<testing::proto::EchoResponse>* stream) {
+                            connect_ptr = stream;
+                            // Write an empty response so the client can wait on the read to sync usage
+                            stream->write(testing::proto::EchoResponse{});
+                        },
+                        [&disconnect_ptr](void* stream) { disconnect_ptr = stream; });
+
+    std::thread run_thread([&server] { server.run(); });
+
+    std::string server_address = "0.0.0.0:" + std::to_string(port);
+    testing::TestClient client(server_address);
+
+    const char* test_message = "test message";
+    int expected_responses = 12;
+
+    grpc::ClientContext context;
+    tp::EchoRequest request{};
+    request.set_message(test_message);
+    request.set_expected_responses(expected_responses);
+
+    std::unique_ptr<grpc::ClientReader<tp::EchoResponse>> response_reader;
+
+    response_reader = client.stub->ServerStreamEchoTest(&context, request);
+    REQUIRE(response_reader);
+
+    testing::proto::EchoResponse response;
+    bool read_status = response_reader->Read(&response); // Wait for server to set connect_ptr
+
+    CHECK(read_status);
+    CHECK(connect_ptr != nullptr);
+
+    server.shutdown();
+    run_thread.join();
+
+    // Server finished so the stream has been cancelled and should return a false status
+    read_status = response_reader->Read(&response);
+
+    CHECK_FALSE(read_status);
+    CHECK(disconnect_ptr != nullptr);
+    CHECK(disconnect_ptr == connect_ptr);
+
+    // Status should not be ok since the stream was cancelled by the server
+    grpc::Status status = response_reader->Finish();
+    CHECK_FALSE(status.ok());
+}
+#endif
