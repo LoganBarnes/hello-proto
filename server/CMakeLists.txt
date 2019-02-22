@@ -45,7 +45,7 @@ if (NOT CLANG_TIDY_EXE)
     message(STATUS "clang-tidy not found.")
 else ()
     message(STATUS "clang-tidy found: ${CLANG_TIDY_EXE}")
-    set(DO_CLANG_TIDY "${CLANG_TIDY_EXE}" "-format-style=file" "-fix" "-fix-errors")
+    set(DO_CLANG_TIDY "${CLANG_TIDY_EXE}" "-format-style=file") # "-fix" "-fix-errors")
 endif ()
 
 ###########################
@@ -57,7 +57,7 @@ add_subdirectory(protos)
 ##################
 ### ProtoScene ###
 ##################
-file(GLOB_RECURSE MINECRAFT_SERVER_SOURCE_FILES
+file(GLOB_RECURSE MCS_SOURCE_FILES
         LIST_DIRECTORIES false
         CONFIGURE_DEPENDS
         ${CMAKE_CURRENT_LIST_DIR}/src/mcs/*
@@ -66,7 +66,7 @@ file(GLOB_RECURSE MINECRAFT_SERVER_SOURCE_FILES
 
 add_executable(minecraft_server
         src/exec/minecraft_server_instance.cpp
-        ${MINECRAFT_SERVER_SOURCE_FILES}
+        ${MCS_SOURCE_FILES}
         )
 target_link_libraries(minecraft_server PRIVATE
         minecraft_protos
@@ -104,8 +104,9 @@ if (${MCS_BUILD_TESTS})
             ${CMAKE_CURRENT_LIST_DIR}/src/testing/*
             )
 
-    add_executable(mcs_tests ${TESTING_SOURCE_FILES} ${MCS_SERVER_SOURCE_FILES})
+    add_executable(mcs_tests ${TESTING_SOURCE_FILES} ${MCS_SOURCE_FILES})
     target_link_libraries(mcs_tests PRIVATE
+            minecraft_protos
             testing_protos
             Threads::Threads
             )

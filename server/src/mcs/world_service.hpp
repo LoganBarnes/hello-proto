@@ -20,10 +20,6 @@ public:
                               const minecraft::ClientData* request,
                               grpc::ServerWriter<minecraft::WorldUpdate>* writer) override;
 
-    grpc::Status SayHello(grpc::ServerContext* context,
-                          const minecraft::HelloRequest* request,
-                          minecraft::HelloReply* response) override;
-
     void loop() {
         int x = 0;
         int y = 0;
