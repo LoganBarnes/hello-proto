@@ -9,9 +9,7 @@
       <font color="red">{{ grpcErrors }}</font>
     </p>
     <p v-else v-for="item in grpcTransactions" :key="item.id">
-      <font color="green">
-        {{ item.toArray() }}
-      </font>
+      <font color="green">{{ item.toArray() }}</font>
     </p>
   </div>
 </template>

@@ -55,7 +55,7 @@ enum class ProcessState { processing, finished };
 
 struct Connection {
     virtual ~Connection() = 0;
-    virtual void process() = 0;
+    virtual void add_next_tag_to_queue() = 0;
     virtual void cancel() = 0;
 };
 
@@ -78,7 +78,7 @@ struct UnaryRpcConnection : Connection {
     explicit UnaryRpcConnection(Tagger* tgr) : tagger(tgr), responder(&context), state(ProcessState::processing) {}
     ~UnaryRpcConnection() override = default;
 
-    void process() override {
+    void add_next_tag_to_queue() override {
         if (state == ProcessState::processing) {
             responder.Finish(response, status, tagger->make_tag(TagLabel::processing, this));
             state = ProcessState::finished;
@@ -111,7 +111,7 @@ struct ServerStreamRpcConnection : Connection {
 
     ~ServerStreamRpcConnection() override = default;
 
-    void process() override {
+    void add_next_tag_to_queue() override {
         if (state == ProcessState::finished) {
             return;
         }

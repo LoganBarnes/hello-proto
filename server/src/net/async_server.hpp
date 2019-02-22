@@ -72,7 +72,7 @@ public:
     template <typename RpcFunction, typename ConnectCallback, typename DisconnectCallback = detail::Empty>
     void register_rpc(RpcFunction rpc_function,
                       ConnectCallback&& connect_callback,
-                      DisconnectCallback&& disconnect_callback = detail::Empty{});
+                      DisconnectCallback&& disconnect_callback = {});
 
     void run();
 
@@ -143,15 +143,16 @@ void AsyncServer<Service>::run() {
         switch (tag.label) {
 
         case detail::TagLabel::rpc_call_requested_by_client:
-            std::cout << "rpc_call_requested_by_client" << std::endl;
 
             if (call_ok) {
                 auto rpc_call = static_cast<detail::RpcCallHandle<AsyncService>*>(tag.data);
 
                 auto active_connection = rpc_call->extract_active_connection();
 
-                if (tagger_.count(active_connection.get()) != 0u) {
-                    active_connection->process();
+                // Process the new connection if it hasn't already added itself to the queue (all connections
+                // will have at least one tag on the queue to notify us when the connection is broken).
+                if (tagger_.count(active_connection.get()) == 1u) {
+                    active_connection->add_next_tag_to_queue();
                 }
                 void* connection_id = active_connection.get();
                 active_connections_.emplace(connection_id, std::move(active_connection));
@@ -165,15 +166,13 @@ void AsyncServer<Service>::run() {
             continue;
 
         case detail::TagLabel::processing:
-            std::cout << "processing" << std::endl;
             if (call_ok) {
                 auto connection = static_cast<detail::Connection*>(tag.data);
-                connection->process();
+                connection->add_next_tag_to_queue();
             }
             break;
 
         case detail::TagLabel::rpc_finished: {
-            std::cout << "rpc_finished" << std::endl;
             void* rpc_id = connections_to_rpc_calls_.at(tag.data);
             rpc_calls_.at(rpc_id)->disconnect(tag.data);
         } break;
@@ -182,7 +181,7 @@ void AsyncServer<Service>::run() {
 
         if (tag_count == 0) {
             // No more tags with this active_connection are left in the queue so we can delete the data
-            std::cout << "Erase" << std::endl;
+            connections_to_rpc_calls_.erase(tag.data);
             active_connections_.erase(tag.data);
         }
     }
@@ -257,7 +256,7 @@ TEST_CASE("[net] test single streaming rpc call") {
 
     server.register_rpc(&TestService::RequestServerStreamEchoTest,
                         [](const tp::EchoRequest& request, net::ServerToClientStream<tp::EchoResponse>* stream) {
-                            tp::EchoResponse response;
+                            tp::EchoResponse response{};
                             for (int i = 0; i < request.expected_responses(); ++i) {
                                 response.set_message(request.message());
                                 response.set_response_number(i);
@@ -272,8 +271,7 @@ TEST_CASE("[net] test single streaming rpc call") {
     testing::TestClient client(server_address);
 
     const char* test_message = "test message";
-    int expected_responses = 1; // Increase this to break the test.
-    //                             TODO: fix this ^
+    int expected_responses = 12;
 
     grpc::ClientContext context;
     tp::EchoRequest request{};

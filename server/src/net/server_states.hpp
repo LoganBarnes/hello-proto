@@ -223,7 +223,7 @@ make_rpc_call_handle(ServerStreamRpcFunction<BaseService, Request, Response> ser
         return stream->status();
     };
 
-    auto disconnect_callback_wrapper = [disconnect_callback](void* connection) {
+    auto disconnect_callback_wrapper = [disconnect_callback{disconnect_callback}](void* connection) {
         auto server_stream_connection = static_cast<ServerStreamRpcConnection<Response>*>(connection);
         disconnect_callback(&server_stream_connection->response);
     };
