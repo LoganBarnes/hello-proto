@@ -26,11 +26,14 @@ function build_and_run {
     cmake -E make_directory $1
     cmake -E chdir $1 cmake -DCMAKE_BUILD_TYPE=$2 -DHELLO_USE_DEV_FLAGS=ON -DHELLO_BUILD_TESTS=ON ..
     cmake -E chdir $1 cmake --build . --parallel
-    cmake -E chdir $1 ./$3
+    cmake -E chdir $1 ./bin/hello_tests
 }
 
-build_and_run cmake-build-debug Debug hello_coverage
-build_and_run cmake-build-release Release hello_tests
+build_and_run cmake-build-debug Debug
+build_and_run cmake-build-release Release
+
+# explicitly run coverage build
+cmake -E chdir cmake-build-debug cmake --build . --target hello_coverage
 popd
 
 # build client
