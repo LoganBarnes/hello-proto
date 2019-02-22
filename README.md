@@ -1,5 +1,10 @@
 # hello-proto
 
+[![Travis CI][travis-badge]][travis-link]
+[![Codecov][codecov-badge]][codecov-link]
+
+A gRPC C++ server and Typescript client.
+
 ## Dependencies
 
 ### Client:
@@ -137,3 +142,8 @@ yarn proxy    && \
 yarn serve
 
 ```
+
+[travis-badge]: https://travis-ci.org/LoganBarnes/hello-proto.svg?branch=master
+[travis-link]: https://travis-ci.org/LoganBarnes/hello-proto
+[codecov-badge]: https://codecov.io/gh/LoganBarnes/hello-proto/branch/master/graph/badge.svg
+[codecov-link]: https://codecov.io/gh/LoganBarnes/hello-proto

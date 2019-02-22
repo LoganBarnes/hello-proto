@@ -8,13 +8,17 @@ cmake --version
 
 # install deps
 apt update
+apt install -y apt-transport-https
 
 # yarn repo
 curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add -
 echo "deb https://dl.yarnpkg.com/debian/ stable main" | tee /etc/apt/sources.list.d/yarn.list
 
+# node update
+curl -sL https://deb.nodesource.com/setup_10.x | bash -
+
 apt update
-apt install -y lcov yarn
+apt install -y lcov nodejs yarn
 
 # build server
 pushd server
