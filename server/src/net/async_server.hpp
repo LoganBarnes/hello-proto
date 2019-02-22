@@ -12,11 +12,6 @@
 #include <mutex>
 
 namespace net {
-namespace detail {
-struct Empty {
-    void operator()(void*) const {}
-};
-} // namespace detail
 
 /**
  * @brief
@@ -69,7 +64,7 @@ public:
      * @param rpc_function - The unary RPC function
      * @param callback - What to do when this RPC is triggered <grpc::Status(const Request&, Response*)>
      */
-    template <typename RpcFunction, typename ConnectCallback, typename DisconnectCallback = detail::Empty>
+    template <typename RpcFunction, typename ConnectCallback, typename DisconnectCallback = detail::EmptyDisconnect>
     void register_rpc(RpcFunction rpc_function,
                       ConnectCallback&& connect_callback,
                       DisconnectCallback&& disconnect_callback = {});

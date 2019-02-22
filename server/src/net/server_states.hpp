@@ -24,10 +24,6 @@ struct EmptyConnect {
     void operator()(const google::protobuf::Empty&, net::ServerToClientStream<testing::proto::EchoResponse>*) const {}
 };
 
-struct EmptyDisconnect {
-    void operator()(void*) const {}
-};
-
 } // namespace testing
 #endif
 
@@ -50,6 +46,10 @@ template <typename Service, typename Request, typename Response>
 using ServerStreamRpcFunction = RpcFunction<Service, Request, Response, grpc::ServerAsyncWriter>;
 
 namespace detail {
+
+struct EmptyDisconnect {
+    void operator()(void*) const {}
+};
 
 template <typename Service>
 struct RpcCallHandle {
@@ -124,7 +124,7 @@ template class RpcCall<testing::proto::Echo::AsyncService,
                        grpc::ServerAsyncResponseWriter,
                        UnaryRpcConnection<testing::proto::EchoResponse>,
                        testing::EmptyConnect,
-                       testing::EmptyDisconnect>;
+                       EmptyDisconnect>;
 
 template class RpcCall<testing::proto::Echo::AsyncService,
                        testing::proto::Echo::AsyncService,
@@ -133,7 +133,7 @@ template class RpcCall<testing::proto::Echo::AsyncService,
                        grpc::ServerAsyncWriter,
                        ServerStreamRpcConnection<testing::proto::EchoResponse>,
                        testing::EmptyConnect,
-                       testing::EmptyDisconnect>;
+                       EmptyDisconnect>;
 #endif
 
 /**
@@ -184,10 +184,10 @@ make_rpc_call_handle<testing::proto::Echo::AsyncService,
                      testing::proto::EchoRequest,
                      testing::proto::EchoResponse,
                      testing::EmptyConnect,
-                     testing::EmptyDisconnect>(
+                     EmptyDisconnect>(
     UnaryRpcFunction<testing::proto::Echo::AsyncService, testing::proto::EchoRequest, testing::proto::EchoResponse>,
     testing::EmptyConnect&&,
-    testing::EmptyDisconnect&&);
+    EmptyDisconnect&&);
 #endif
 
 /**
@@ -249,10 +249,10 @@ make_rpc_call_handle<testing::proto::Echo::AsyncService,
                      google::protobuf::Empty,
                      testing::proto::EchoResponse,
                      testing::EmptyConnect,
-                     testing::EmptyDisconnect>(
+                     EmptyDisconnect>(
     ServerStreamRpcFunction<testing::proto::Echo::AsyncService, google::protobuf::Empty, testing::proto::EchoResponse>,
     testing::EmptyConnect&&,
-    testing::EmptyDisconnect&&);
+    EmptyDisconnect&&);
 #endif
 
 } // namespace detail
