@@ -26,7 +26,7 @@ function build_and_run {
     cmake -E make_directory $1
     cmake -E chdir $1 cmake -DCMAKE_BUILD_TYPE=$2 -DHELLO_USE_DEV_FLAGS=ON -DHELLO_BUILD_TESTS=ON ..
     cmake -E chdir $1 cmake --build . --parallel
-    cmake -E chdir $1 ./hello_tests
+    cmake -E chdir $1 ./bin/hello_tests
 }
 
 build_and_run cmake-build-debug Debug
