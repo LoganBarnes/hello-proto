@@ -2,5 +2,3 @@
 #include <doctest/doctest.h>
 
 #include "net/async_server.hpp"
-
-namespace tests {} // namespace tests

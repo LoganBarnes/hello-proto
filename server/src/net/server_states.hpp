@@ -8,23 +8,7 @@
 #include <grpcpp/completion_queue.h>
 
 #ifdef DOCTEST_LIBRARY_INCLUDED
-#include <google/protobuf/empty.pb.h>
-#include <testing/echo.grpc.pb.h>
-
-namespace testing {
-
-struct EmptyConnect {
-    grpc::Status operator()(const testing::proto::EchoRequest&, testing::proto::EchoResponse*) const {
-        return grpc::Status::OK;
-    }
-    std::unique_ptr<grpc::Status> operator()(const testing::proto::EchoRequest&,
-                                             net::ServerToClientStream<testing::proto::EchoResponse>*) const {
-        return nullptr;
-    }
-    void operator()(const google::protobuf::Empty&, net::ServerToClientStream<testing::proto::EchoResponse>*) const {}
-};
-
-} // namespace testing
+#include <testing/test_service.h>
 #endif
 
 namespace net {
@@ -116,26 +100,6 @@ private:
     std::unique_ptr<RpcConnection> connection_;
 };
 
-#ifdef DOCTEST_LIBRARY_INCLUDED
-template class RpcCall<testing::proto::Echo::AsyncService,
-                       testing::proto::Echo::AsyncService,
-                       testing::proto::EchoRequest,
-                       testing::proto::EchoResponse,
-                       grpc::ServerAsyncResponseWriter,
-                       UnaryRpcConnection<testing::proto::EchoResponse>,
-                       testing::EmptyConnect,
-                       EmptyDisconnect>;
-
-template class RpcCall<testing::proto::Echo::AsyncService,
-                       testing::proto::Echo::AsyncService,
-                       testing::proto::EchoRequest,
-                       testing::proto::EchoResponse,
-                       grpc::ServerAsyncWriter,
-                       ServerStreamRpcConnection<testing::proto::EchoResponse>,
-                       testing::EmptyConnect,
-                       EmptyDisconnect>;
-#endif
-
 /**
  * @brief
  * @tparam Service
@@ -176,19 +140,6 @@ make_rpc_call_handle(UnaryRpcFunction<BaseService, Request, Response> unary_rpc_
                                       std::forward<ConnectCallback>(connect_callback),
                                       std::forward<DisconnectCallback>(disconnect_callback));
 }
-
-#ifdef DOCTEST_LIBRARY_INCLUDED
-template std::unique_ptr<detail::RpcCallHandle<testing::proto::Echo::AsyncService>>
-make_rpc_call_handle<testing::proto::Echo::AsyncService,
-                     testing::proto::Echo::AsyncService,
-                     testing::proto::EchoRequest,
-                     testing::proto::EchoResponse,
-                     testing::EmptyConnect,
-                     EmptyDisconnect>(
-    UnaryRpcFunction<testing::proto::Echo::AsyncService, testing::proto::EchoRequest, testing::proto::EchoResponse>,
-    testing::EmptyConnect&&,
-    EmptyDisconnect&&);
-#endif
 
 /**
  * @brief
@@ -242,18 +193,31 @@ make_rpc_call_handle(ServerStreamRpcFunction<BaseService, Request, Response> ser
                                              std::move(disconnect_callback_wrapper));
 }
 
+} // namespace detail
+
 #ifdef DOCTEST_LIBRARY_INCLUDED
 template std::unique_ptr<detail::RpcCallHandle<testing::proto::Echo::AsyncService>>
-make_rpc_call_handle<testing::proto::Echo::AsyncService,
-                     testing::proto::Echo::AsyncService,
-                     google::protobuf::Empty,
-                     testing::proto::EchoResponse,
-                     testing::EmptyConnect,
-                     EmptyDisconnect>(
-    ServerStreamRpcFunction<testing::proto::Echo::AsyncService, google::protobuf::Empty, testing::proto::EchoResponse>,
-    testing::EmptyConnect&&,
+detail::make_rpc_call_handle<testing::proto::Echo::AsyncService,
+                             testing::proto::Echo::AsyncService,
+                             testing::proto::EchoRequest,
+                             testing::proto::EchoResponse,
+                             testing::TestService,
+                             detail::EmptyDisconnect>(
+    UnaryRpcFunction<testing::proto::Echo::AsyncService, testing::proto::EchoRequest, testing::proto::EchoResponse>,
+    testing::TestService&&,
     EmptyDisconnect&&);
+
+template std::unique_ptr<detail::RpcCallHandle<testing::proto::Echo::AsyncService>>
+detail::make_rpc_call_handle<testing::proto::Echo::AsyncService,
+                             testing::proto::Echo::AsyncService,
+                             testing::proto::EchoRequest,
+                             testing::proto::EchoResponse,
+                             testing::TestService,
+                             detail::EmptyDisconnect>(ServerStreamRpcFunction<testing::proto::Echo::AsyncService,
+                                                                              testing::proto::EchoRequest,
+                                                                              testing::proto::EchoResponse>,
+                                                      testing::TestService&&,
+                                                      detail::EmptyDisconnect&&);
 #endif
 
-} // namespace detail
 } // namespace net

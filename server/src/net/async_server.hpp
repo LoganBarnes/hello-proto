@@ -88,11 +88,6 @@ private:
     std::mutex update_lock_;
 };
 
-#ifdef DOCTEST_LIBRARY_INCLUDED
-#include <testing/echo.grpc.pb.h>
-template class net::AsyncServer<testing::proto::Echo>;
-#endif
-
 template <typename Service>
 AsyncServer<Service>::AsyncServer(unsigned port) : service_(std::make_unique<AsyncService>()) {
     std::string host_address = "0.0.0.0:" + std::to_string(port);
@@ -198,6 +193,8 @@ void AsyncServer<Server>::shutdown() {
 #include <testing/test_client.hpp>
 #include <thread>
 
+template class net::AsyncServer<testing::proto::Echo>;
+
 namespace tp = testing::proto;
 using TestService = tp::Echo::AsyncService;
 
@@ -216,12 +213,7 @@ TEST_CASE("[net] test single unary rpc call") {
 
     net::AsyncServer<testing::proto::Echo> server(/*port=*/port);
 
-    server.register_rpc(&TestService::RequestUnaryEchoTest,
-                        [](const tp::EchoRequest& request, tp::EchoResponse* response) {
-                            response->set_message(request.message());
-                            response->set_response_number(1);
-                            return grpc::Status::OK;
-                        });
+    server.register_rpc(&TestService::RequestUnaryEchoTest, testing::TestService{});
 
     std::thread run_thread([&server] { server.run(); });
 
@@ -249,16 +241,7 @@ TEST_CASE("[net] test single streaming rpc call") {
 
     net::AsyncServer<testing::proto::Echo> server(/*port=*/port);
 
-    server.register_rpc(&TestService::RequestServerStreamEchoTest,
-                        [](const tp::EchoRequest& request, net::ServerToClientStream<tp::EchoResponse>* stream) {
-                            tp::EchoResponse response{};
-                            for (int i = 0; i < request.expected_responses(); ++i) {
-                                response.set_message(request.message());
-                                response.set_response_number(i);
-                                stream->write(response);
-                            }
-                            stream->finish(grpc::Status::OK);
-                        });
+    server.register_rpc(&TestService::RequestServerStreamEchoTest, testing::TestService{});
 
     std::thread run_thread([&server] { server.run(); });
 
@@ -295,5 +278,61 @@ TEST_CASE("[net] test single streaming rpc call") {
 
     server.shutdown();
     run_thread.join();
+}
+
+TEST_CASE("[net] test continuous streaming rpc call returns correct pointer on disconnect") {
+    unsigned port = 9090u;
+
+    net::AsyncServer<testing::proto::Echo> server(/*port=*/port);
+
+    void* connect_ptr = nullptr;
+    void* disconnect_ptr = nullptr;
+
+    server.register_rpc(&TestService::RequestServerStreamEchoTest,
+                        [&connect_ptr](const testing::proto::EchoRequest&,
+                                       net::ServerToClientStream<testing::proto::EchoResponse>* stream) {
+                            connect_ptr = stream;
+                            // Write an empty response so the client can wait on the read to sync usage
+                            stream->write(testing::proto::EchoResponse{});
+                        },
+                        [&disconnect_ptr](void* stream) { disconnect_ptr = stream; });
+
+    std::thread run_thread([&server] { server.run(); });
+
+    std::string server_address = "0.0.0.0:" + std::to_string(port);
+    testing::TestClient client(server_address);
+
+    const char* test_message = "test message";
+    int expected_responses = 12;
+
+    grpc::ClientContext context;
+    tp::EchoRequest request{};
+    request.set_message(test_message);
+    request.set_expected_responses(expected_responses);
+
+    std::unique_ptr<grpc::ClientReader<tp::EchoResponse>> response_reader;
+
+    response_reader = client.stub->ServerStreamEchoTest(&context, request);
+    REQUIRE(response_reader);
+
+    testing::proto::EchoResponse response;
+    bool read_status = response_reader->Read(&response); // Wait for server to set connect_ptr
+
+    CHECK(read_status);
+    CHECK(connect_ptr != nullptr);
+
+    server.shutdown();
+    run_thread.join();
+
+    // Server finished so the stream has been cancelled and should return a false status
+    read_status = response_reader->Read(&response);
+
+    CHECK_FALSE(read_status);
+    CHECK(disconnect_ptr != nullptr);
+    CHECK(disconnect_ptr == connect_ptr);
+
+    // Status should not be ok since the stream was cancelled by the server
+    grpc::Status status = response_reader->Finish();
+    CHECK_FALSE(status.ok());
 }
 #endif
