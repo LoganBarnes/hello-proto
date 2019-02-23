@@ -92,13 +92,20 @@ template <typename Service>
 AsyncServer<Service>::AsyncServer(unsigned port) : service_(std::make_unique<AsyncService>()) {
     std::string host_address = "0.0.0.0:" + std::to_string(port);
 
-    std::cout << "Server running at " << host_address << std::endl;
-
     grpc::ServerBuilder builder;
     builder.RegisterService(service_.get());
     builder.AddListeningPort(host_address, grpc::InsecureServerCredentials());
     server_queue_ = builder.AddCompletionQueue();
+
+    // Prevent multiple servers from running on the same port
+    builder.AddChannelArgument("grpc.so_reuseport", 0);
     server_ = builder.BuildAndStart();
+
+    if (!server_) {
+        throw std::runtime_error("Failed to build server (might have one running on the same port).");
+    }
+
+    std::cout << "Server running at " << host_address << std::endl;
 }
 
 template <typename Service>
@@ -197,6 +204,17 @@ template class net::AsyncServer<testing::proto::Echo>;
 
 namespace tp = testing::proto;
 using TestService = tp::Echo::AsyncService;
+
+TEST_CASE("[net] test servers cannot run on the same port") {
+    unsigned port = 9090u;
+    net::AsyncServer<testing::proto::Echo> server(/*port=*/port);
+    std::thread run_thread([&server] { server.run(); });
+
+    CHECK_THROWS_AS((net::AsyncServer<testing::proto::Echo>(/*port=*/port)), std::runtime_error);
+
+    server.shutdown();
+    run_thread.join();
+}
 
 TEST_CASE("[net] test server can be stopped immediately with no RPCs") {
     unsigned port = 9090u;
