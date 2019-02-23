@@ -98,7 +98,7 @@ AsyncServer<Service>::AsyncServer(unsigned port) : service_(std::make_unique<Asy
     builder.RegisterService(service_.get());
     builder.AddListeningPort(host_address, grpc::InsecureServerCredentials());
     server_queue_ = builder.AddCompletionQueue();
-    
+
     // Prevent multiple servers from running on the same port
     builder.AddChannelArgument("grpc.so_reuseport", 0);
     server_ = builder.BuildAndStart();
