@@ -16,22 +16,29 @@ std::string to_string(net::ServerToClientStream<minecraft::WorldUpdate>* client_
 MinecraftServer::MinecraftServer(unsigned port) : server_(port) {
     metadata_.set_total_blocks(world_.blocks().size());
 
+    // Let the clients modify the world
     server_.register_rpc(&minecraft::World::AsyncService::RequestModifyWorld,
                          [this](const minecraft::WorldActionRequest& request, minecraft::Errors* errors) {
                              return modify_world(request, errors);
                          });
 
+    // Keep track of metadata streams requested by clients
     server_.register_rpc(&minecraft::World::AsyncService::RequestMetadataUpdates,
                          [this](const google::protobuf::Empty& /*ignored*/, MetadataStream* stream) {
                              metadata_clients_.emplace(stream);
                          },
-                         [this](void* stream) { metadata_clients_.erase(static_cast<MetadataStream*>(stream)); });
+                         [this](void* stream) { // client disconnected
+                             metadata_clients_.erase(static_cast<MetadataStream*>(stream));
+                         });
 
+    // Keep track of update streams requested by clients
     server_.register_rpc(&minecraft::World::AsyncService::RequestWorldUpdates,
                          [this](const minecraft::ClientData& client, UpdateStream* client_stream) {
                              register_client(client, client_stream);
                          },
-                         [this](void* client_stream) { deregister_client(static_cast<UpdateStream*>(client_stream)); });
+                         [this](void* client_stream) { // client disconnected
+                             deregister_client(static_cast<UpdateStream*>(client_stream));
+                         });
 }
 
 void MinecraftServer::run_blocking() {
