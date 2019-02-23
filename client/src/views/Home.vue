@@ -11,6 +11,14 @@
     <div v-else>
       <font color="gray">Advanced interaction not available on mobile</font>
     </div>
+    <div>
+      <h2>Server Info</h2>
+      <h4>Blocks: {{ totalBlocks }}</h4>
+      <h3>Clients:</h3>
+      <li v-for="client in clients" :key="client[0]">
+        {{ client[1] }}
+      </li>
+    </div>
   </div>
 </template>
 
@@ -19,6 +27,7 @@ import { Component, Watch, Vue } from 'vue-property-decorator';
 import Canvas3d from '@/components/Canvas.vue';
 import ObservableWorld from '@/minecraft/ObservableWorld';
 import MinecraftServer from '@/net/MinecraftServer';
+import { Metadata } from '@gen/minecraft/world_pb';
 
 @Component({
   components: {
@@ -28,6 +37,8 @@ import MinecraftServer from '@/net/MinecraftServer';
 export default class Home extends Vue {
   private world: ObservableWorld | null = null;
   private server: MinecraftServer = new MinecraftServer();
+  private totalBlocks: number = 0;
+  private clients: string[][] = [];
 
   public mounted() {
     const canvas: Canvas3d = this.$refs.canvas as Canvas3d;
@@ -35,9 +46,18 @@ export default class Home extends Vue {
     this.world = new ObservableWorld(canvas.glContext);
     (this.$refs.canvas as Canvas3d).viewer = this.world.viewer;
 
+    this.server.metadataCallback = this.handleMetadata.bind(this);
     this.server.updateCallback = this.world.handleServerUpdate.bind(this.world);
 
     this.world.run();
+  }
+
+  /**
+   * Set the metadata
+   */
+  public handleMetadata(metadata: Metadata) {
+    this.totalBlocks = metadata.getTotalBlocks();
+    this.clients = metadata.getClientsMap().getEntryList();
   }
 
   /**

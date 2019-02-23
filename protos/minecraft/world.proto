@@ -1,5 +1,6 @@
 syntax = "proto3";
 
+import "google/protobuf/empty.proto";
 import "minecraft/requests.proto";
 import "minecraft/updates.proto";
 
@@ -8,6 +9,8 @@ package minecraft;
 service World {
     rpc ModifyWorld (WorldActionRequest) returns (Errors);
     rpc WorldUpdates (ClientData) returns (stream WorldUpdate);
+
+    rpc MetadataUpdates (google.protobuf.Empty) returns (stream Metadata);
 }
 
 message Errors {
@@ -16,16 +19,11 @@ message Errors {
 
 message ClientData {
     string name = 1;
+    bool send_existing_state = 2;
 }
 
-/*
- * Temporary debug messages
- */
-
-message HelloRequest {
-    string name = 1;
-}
-
-message HelloReply {
-    string message = 1;
+message Metadata {
+    // unique identifier -> client name
+    map<string, string> clients = 1;
+    uint64 total_blocks = 2;
 }
