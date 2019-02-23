@@ -13,11 +13,21 @@
     </div>
     <div>
       <h2>Server Info</h2>
-      <h4>Blocks: {{ totalBlocks }}</h4>
-      <h3>Clients:</h3>
-      <li v-for="client in clients" :key="client[0]">
-        {{ client[1] }}
-      </li>
+      <div v-if="serverConnectionErrors.length">
+        <font color="red">Not connected to a server</font>
+        <br />
+        <br />
+        <font color="darkred">Error: {{ serverConnectionErrors }}</font>
+        <br />
+        <font color="darkred">(Refresh to try and reconnect)</font>
+      </div>
+      <div v-else>
+        <h4>Blocks: {{ totalBlocks }}</h4>
+        <h3>Clients:</h3>
+        <li v-for="client in clients" :key="client[0]">
+          {{ client[1] }}
+        </li>
+      </div>
     </div>
   </div>
 </template>
@@ -28,6 +38,7 @@ import Canvas3d from '@/components/Canvas.vue';
 import ObservableWorld from '@/minecraft/ObservableWorld';
 import MinecraftServer from '@/net/MinecraftServer';
 import { Metadata } from '@gen/minecraft/world_pb';
+import { Status } from '@gen/minecraft/world_pb_service';
 
 @Component({
   components: {
@@ -36,7 +47,8 @@ import { Metadata } from '@gen/minecraft/world_pb';
 })
 export default class Home extends Vue {
   private world: ObservableWorld | null = null;
-  private server: MinecraftServer = new MinecraftServer();
+  private server: MinecraftServer = new MinecraftServer(true);
+  private serverConnectionErrors: string = '';
   private totalBlocks: number = 0;
   private clients: string[][] = [];
 
@@ -46,10 +58,18 @@ export default class Home extends Vue {
     this.world = new ObservableWorld(canvas.glContext);
     (this.$refs.canvas as Canvas3d).viewer = this.world.viewer;
 
+    this.server.statusCallback = this.handleDisconnect.bind(this);
     this.server.metadataCallback = this.handleMetadata.bind(this);
     this.server.updateCallback = this.world.handleServerUpdate.bind(this.world);
 
     this.world.run();
+  }
+
+  /**
+   * Set the metadata
+   */
+  public handleDisconnect(status: Status) {
+    this.serverConnectionErrors = status.details;
   }
 
   /**

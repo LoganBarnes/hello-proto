@@ -1,16 +1,16 @@
-import { ClientData, Errors, Metadata } from '@gen/minecraft/world_pb';
-import { WorldUpdate } from '@gen/minecraft/updates_pb';
 import {
   WorldClient,
   ResponseStream,
   Status,
   ServiceError,
 } from '@gen/minecraft/world_pb_service';
-import { v4 as uuid } from 'uuid';
 import {
   WorldActionRequest,
   AddAdjacentBlockRequest,
 } from '@gen/minecraft/requests_pb';
+import { ClientData, Errors, Metadata } from '@gen/minecraft/world_pb';
+import { WorldUpdate } from '@gen/minecraft/updates_pb';
+import { v4 as uuid } from 'uuid';
 import { Block, IVec3, BlockFace } from '@gen/minecraft/components_pb';
 import { Empty } from 'google-protobuf/google/protobuf/empty_pb';
 
@@ -18,21 +18,25 @@ class MinecraftServer {
   private client: WorldClient = new WorldClient(
     'http://' + process.env.VUE_APP_PROXY_ADDRESS
   );
-  private metadataStream: ResponseStream<Metadata>;
+  private metadataStream: ResponseStream<Metadata> | null = null;
   private updateStream: ResponseStream<WorldUpdate>;
   private userMetadataCallback: (metadata: Metadata) => void;
   private userUpdateCallback: (update: WorldUpdate) => void;
+  private userStatusCallback: (update: Status) => void;
 
-  constructor() {
+  constructor(streamMetadata: boolean) {
     this.userMetadataCallback = (metadata: Metadata) => undefined; // empty
     this.userUpdateCallback = (update: WorldUpdate) => undefined; // empty
+    this.userStatusCallback = (status: Status) => undefined; // empty
 
     // Set up the metadata stream
-    this.metadataStream = this.client.metadataUpdates(new Empty());
+    if (streamMetadata) {
+      this.metadataStream = this.client.metadataUpdates(new Empty());
 
-    this.metadataStream.on('data', this.processMetadata.bind(this));
-    this.metadataStream.on('end', this.processEndStream.bind(this));
-    this.metadataStream.on('status', this.processStatus.bind(this));
+      this.metadataStream.on('data', this.processMetadata.bind(this));
+      // this.metadataStream.on('end', this.processEndStream.bind(this));
+      this.metadataStream.on('status', this.processStatus.bind(this));
+    }
 
     // Set up the world update stream
     const id: string = uuid();
@@ -43,7 +47,7 @@ class MinecraftServer {
     this.updateStream = this.client.worldUpdates(clientData);
 
     this.updateStream.on('data', this.processUpdate.bind(this));
-    this.updateStream.on('end', this.processEndStream.bind(this));
+    // this.updateStream.on('end', this.processEndStream.bind(this));
     this.updateStream.on('status', this.processStatus.bind(this));
   }
 
@@ -78,6 +82,10 @@ class MinecraftServer {
     this.userUpdateCallback = callback;
   }
 
+  set statusCallback(callback: (status: Status) => void) {
+    this.userStatusCallback = callback;
+  }
+
   private processMetadata(metadata: Metadata): void {
     this.userMetadataCallback(metadata);
   }
@@ -86,12 +94,10 @@ class MinecraftServer {
     this.userUpdateCallback(update);
   }
 
-  private processEndStream(): void {
-    // console.log('end');
-  }
+  // private processEndStream(): void {}
 
   private processStatus(status: Status): void {
-    // console.log('status: ' + status.details);
+    this.userStatusCallback(status);
   }
 }
 
