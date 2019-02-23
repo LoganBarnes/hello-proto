@@ -92,8 +92,6 @@ template <typename Service>
 AsyncServer<Service>::AsyncServer(unsigned port) : service_(std::make_unique<AsyncService>()) {
     std::string host_address = "0.0.0.0:" + std::to_string(port);
 
-    std::cout << "Server running at " << host_address << std::endl;
-
     grpc::ServerBuilder builder;
     builder.RegisterService(service_.get());
     builder.AddListeningPort(host_address, grpc::InsecureServerCredentials());
@@ -106,6 +104,8 @@ AsyncServer<Service>::AsyncServer(unsigned port) : service_(std::make_unique<Asy
     if (!server_) {
         throw std::runtime_error("Failed to build server (might have one running on the same port).");
     }
+
+    std::cout << "Server running at " << host_address << std::endl;
 }
 
 template <typename Service>
