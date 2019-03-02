@@ -7,7 +7,7 @@ option(HELLO_BUILD_TESTS "Use doctest to build unit tests" OFF)
 #############################
 ### Project Configuration ###
 #############################
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
@@ -51,50 +51,21 @@ endif ()
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/cmake)
 add_subdirectory(protos)
 
-###########
-### Net ###
-###########
-file(GLOB_RECURSE NET_SOURCE_FILES
+####################
+### Hello Server ###
+####################
+file(GLOB_RECURSE HELLO_SERVER_SOURCE_FILES
         LIST_DIRECTORIES false
         CONFIGURE_DEPENDS
         ${CMAKE_CURRENT_LIST_DIR}/src/net/*
         )
 
-add_library(net ${NET_SOURCE_FILES})
-target_include_directories(net PUBLIC src)
-target_compile_options(net PUBLIC ${HELLO_COMPILE_FLAGS})
+add_executable(hello_server src/exec/hello_server.cpp ${HELLO_SERVER_SOURCE_FILES})
+target_link_libraries(hello_server PRIVATE hello_protos)
+target_include_directories(hello_server PRIVATE src)
 
-##################
-#### Data Flow ###
-##################
-file(GLOB_RECURSE DATA_FLOW_SOURCE_FILES
-        LIST_DIRECTORIES false
-        CONFIGURE_DEPENDS
-        ${CMAKE_CURRENT_LIST_DIR}/src/dataflow/*
-        )
-
-add_library(dataflow ${DATA_FLOW_SOURCE_FILES})
-target_include_directories(dataflow PUBLIC src)
-target_compile_options(dataflow PUBLIC ${HELLO_COMPILE_FLAGS})
-
-##############
-### Server ###
-##############
-file(GLOB_RECURSE HELLO_SERVER_SOURCE_FILES
-        LIST_DIRECTORIES false
-        CONFIGURE_DEPENDS
-        ${CMAKE_CURRENT_LIST_DIR}/src/exec/*
-        )
-
-add_executable(hello_server ${HELLO_SERVER_SOURCE_FILES})
-target_link_libraries(hello_server PRIVATE
-        hello_protos
-        net
-#        dataflow
-        )
 target_compile_options(hello_server PUBLIC ${HELLO_COMPILE_FLAGS})
-
-set_target_properties(hello_server net dataflow PROPERTIES
+set_target_properties(hello_server PROPERTIES
         CXX_CLANG_TIDY "${DO_CLANG_TIDY}"
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
         )
